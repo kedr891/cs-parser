@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -11,8 +12,8 @@ import (
 // Interface -.
 type Interface interface {
 	Debug(message interface{}, args ...interface{})
-	Info(message string, args ...interface{})
-	Warn(message string, args ...interface{})
+	Info(message interface{}, args ...interface{})
+	Warn(message interface{}, args ...interface{})
 	Error(message interface{}, args ...interface{})
 	Fatal(message interface{}, args ...interface{})
 }
@@ -43,8 +44,18 @@ func New(level string) *Logger {
 
 	zerolog.SetGlobalLevel(l)
 
-	skipFrameCount := 3
-	logger := zerolog.New(os.Stdout).With().Timestamp().CallerWithSkipFrameCount(zerolog.CallerSkipFrameCount + skipFrameCount).Logger()
+	// Pretty console output
+	output := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+
+	logger := zerolog.New(output).
+		Level(l).
+		With().
+		Timestamp().
+		Caller().
+		Logger()
 
 	return &Logger{
 		logger: &logger,
@@ -57,21 +68,17 @@ func (l *Logger) Debug(message interface{}, args ...interface{}) {
 }
 
 // Info -.
-func (l *Logger) Info(message string, args ...interface{}) {
-	l.log(message, args...)
+func (l *Logger) Info(message interface{}, args ...interface{}) {
+	l.msg("info", message, args...)
 }
 
 // Warn -.
-func (l *Logger) Warn(message string, args ...interface{}) {
-	l.log(message, args...)
+func (l *Logger) Warn(message interface{}, args ...interface{}) {
+	l.msg("warn", message, args...)
 }
 
 // Error -.
 func (l *Logger) Error(message interface{}, args ...interface{}) {
-	if l.logger.GetLevel() == zerolog.DebugLevel {
-		l.Debug(message, args...)
-	}
-
 	l.msg("error", message, args...)
 }
 
@@ -82,21 +89,78 @@ func (l *Logger) Fatal(message interface{}, args ...interface{}) {
 	os.Exit(1)
 }
 
-func (l *Logger) log(message string, args ...interface{}) {
-	if len(args) == 0 {
-		l.logger.Info().Msg(message)
-	} else {
-		l.logger.Info().Msgf(message, args...)
-	}
-}
-
 func (l *Logger) msg(level string, message interface{}, args ...interface{}) {
 	switch msg := message.(type) {
 	case error:
-		l.log(msg.Error(), args...)
+		l.log(level, msg.Error(), args...)
 	case string:
-		l.log(msg, args...)
+		l.log(level, msg, args...)
 	default:
-		l.log(fmt.Sprintf("%s message %v has unknown type %v", level, message, msg), args...)
+		l.log(level, fmt.Sprintf("%v", message), args...)
 	}
+}
+
+func (l *Logger) log(level string, message string, args ...interface{}) {
+	if len(args) == 0 {
+		switch level {
+		case "debug":
+			l.logger.Debug().Msg(message)
+		case "info":
+			l.logger.Info().Msg(message)
+		case "warn":
+			l.logger.Warn().Msg(message)
+		case "error":
+			l.logger.Error().Msg(message)
+		case "fatal":
+			l.logger.Fatal().Msg(message)
+		}
+		return
+	}
+
+	// Handle key-value pairs
+	var event *zerolog.Event
+	switch level {
+	case "debug":
+		event = l.logger.Debug()
+	case "info":
+		event = l.logger.Info()
+	case "warn":
+		event = l.logger.Warn()
+	case "error":
+		event = l.logger.Error()
+	case "fatal":
+		event = l.logger.Fatal()
+	default:
+		event = l.logger.Info()
+	}
+
+	// Add fields from args (key-value pairs)
+	for i := 0; i < len(args)-1; i += 2 {
+		if key, ok := args[i].(string); ok {
+			event = event.Interface(key, args[i+1])
+		}
+	}
+
+	event.Msg(message)
+}
+
+// WithField - добавить одно поле к логгеру
+func (l *Logger) WithField(key string, value interface{}) *Logger {
+	newLogger := l.logger.With().Interface(key, value).Logger()
+	return &Logger{logger: &newLogger}
+}
+
+// WithFields - добавить несколько полей к логгеру
+func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
+	ctx := l.logger.With()
+	for k, v := range fields {
+		ctx = ctx.Interface(k, v)
+	}
+	newLogger := ctx.Logger()
+	return &Logger{logger: &newLogger}
+}
+
+// GetZerolog - получить нативный zerolog.Logger для продвинутого использования
+func (l *Logger) GetZerolog() *zerolog.Logger {
+	return l.logger
 }

@@ -1,110 +1,118 @@
-// Package app configures and runs application.
+// Package app configures and runs the application.
 package app
 
 import (
-	"fmt"
+	"context"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/evrone/go-clean-template/config"
-	amqprpc "github.com/evrone/go-clean-template/internal/controller/amqp_rpc"
-	"github.com/evrone/go-clean-template/internal/controller/grpc"
-	"github.com/evrone/go-clean-template/internal/controller/http"
-	natsrpc "github.com/evrone/go-clean-template/internal/controller/nats_rpc"
-	"github.com/evrone/go-clean-template/internal/repo/persistent"
-	"github.com/evrone/go-clean-template/internal/repo/webapi"
-	"github.com/evrone/go-clean-template/internal/usecase/translation"
-	"github.com/evrone/go-clean-template/pkg/grpcserver"
-	"github.com/evrone/go-clean-template/pkg/httpserver"
-	"github.com/evrone/go-clean-template/pkg/logger"
-	natsRPCServer "github.com/evrone/go-clean-template/pkg/nats/nats_rpc/server"
-	"github.com/evrone/go-clean-template/pkg/postgres"
-	rmqRPCServer "github.com/evrone/go-clean-template/pkg/rabbitmq/rmq_rpc/server"
+	"github.com/cs-parser/config"
+	"github.com/cs-parser/internal/api/handler"
+	"github.com/cs-parser/internal/api/middleware"
+	"github.com/cs-parser/internal/api/router"
+	"github.com/cs-parser/pkg/logger"
+	"github.com/cs-parser/pkg/postgres"
+	"github.com/cs-parser/pkg/redis"
+	"github.com/gin-gonic/gin"
 )
 
-// Run creates objects via constructors.
-func Run(cfg *config.Config) { //nolint: gocyclo,cyclop,funlen,gocritic,nolintlint
-	l := logger.New(cfg.Log.Level)
+// Run initializes and starts the API application.
+func Run(cfg *config.Config) {
+	// Initialize logger
+	log := logger.New(cfg.Log.Level)
+	log.Info("Starting CS2 Skin Tracker API", "version", cfg.App.Version)
 
-	// Repository
+	// Initialize PostgreSQL
+	log.Info("Connecting to PostgreSQL...")
 	pg, err := postgres.New(cfg.PG.URL, postgres.MaxPoolSize(cfg.PG.PoolMax))
 	if err != nil {
-		l.Fatal(fmt.Errorf("app - Run - postgres.New: %w", err))
+		log.Fatal("Failed to connect to PostgreSQL", "error", err)
 	}
 	defer pg.Close()
+	log.Info("PostgreSQL connected successfully")
 
-	// Use-Case
-	translationUseCase := translation.New(
-		persistent.New(pg),
-		webapi.New(),
-	)
-
-	// RabbitMQ RPC Server
-	rmqRouter := amqprpc.NewRouter(translationUseCase, l)
-
-	rmqServer, err := rmqRPCServer.New(cfg.RMQ.URL, cfg.RMQ.ServerExchange, rmqRouter, l)
+	// Initialize Redis
+	log.Info("Connecting to Redis...")
+	rdb, err := redis.New(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
 	if err != nil {
-		l.Fatal(fmt.Errorf("app - Run - rmqServer - server.New: %w", err))
+		log.Fatal("Failed to connect to Redis", "error", err)
+	}
+	defer rdb.Close()
+	log.Info("Redis connected successfully")
+
+	// Set Gin mode
+	if cfg.Log.Level == "debug" {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// NATS RPC Server
-	natsRouter := natsrpc.NewRouter(translationUseCase, l)
+	// Create Gin engine
+	engine := gin.New()
 
-	natsServer, err := natsRPCServer.New(cfg.NATS.URL, cfg.NATS.ServerExchange, natsRouter, l)
-	if err != nil {
-		l.Fatal(fmt.Errorf("app - Run - natsServer - server.New: %w", err))
+	// Global middleware
+	engine.Use(gin.Recovery())
+	engine.Use(middleware.Logger(log))
+	engine.Use(middleware.CORS())
+
+	// Initialize handlers
+	skinHandler := handler.NewSkinHandler(pg, rdb, log)
+	userHandler := handler.NewUserHandler(pg, rdb, cfg.JWT.Secret, log)
+	analyticsHandler := handler.NewAnalyticsHandler(pg, rdb, log)
+
+	// Initialize auth middleware
+	authMiddleware := middleware.NewAuthMiddleware(cfg.JWT.Secret, log)
+
+	// Setup routes
+	router.SetupRoutes(engine, skinHandler, userHandler, analyticsHandler, authMiddleware)
+
+	// Health check
+	engine.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status":  "ok",
+			"service": cfg.App.Name,
+			"version": cfg.App.Version,
+		})
+	})
+
+	// Create HTTP server with proper configuration
+	addr := ":" + cfg.HTTP.Port
+	srv := &http.Server{
+		Addr:           addr,
+		Handler:        engine,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
-	// gRPC Server
-	grpcServer := grpcserver.New(l, grpcserver.Port(cfg.GRPC.Port))
-	grpc.NewRouter(grpcServer.App, translationUseCase, l)
+	// Start server in goroutine
+	go func() {
+		log.Info("Starting HTTP server", "addr", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("Failed to start server", "error", err)
+		}
+	}()
 
-	// HTTP Server
-	httpServer := httpserver.New(l, httpserver.Port(cfg.HTTP.Port), httpserver.Prefork(cfg.HTTP.UsePreforkMode))
-	http.NewRouter(httpServer.App, cfg, translationUseCase, l)
+	log.Info("API server started successfully", "addr", addr)
 
-	// Start servers
-	rmqServer.Start()
-	natsServer.Start()
-	grpcServer.Start()
-	httpServer.Start()
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// Waiting signal
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+	sig := <-quit
+	log.Info("Received shutdown signal", "signal", sig.String())
 
-	select {
-	case s := <-interrupt:
-		l.Info("app - Run - signal: %s", s.String())
-	case err = <-httpServer.Notify():
-		l.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
-	case err = <-grpcServer.Notify():
-		l.Error(fmt.Errorf("app - Run - grpcServer.Notify: %w", err))
-	case err = <-rmqServer.Notify():
-		l.Error(fmt.Errorf("app - Run - rmqServer.Notify: %w", err))
-	case err = <-natsServer.Notify():
-		l.Error(fmt.Errorf("app - Run - natsServer.Notify: %w", err))
+	// Graceful shutdown with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	log.Info("Shutting down API server...")
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Error("Server forced to shutdown", "error", err)
 	}
 
-	// Shutdown
-	err = httpServer.Shutdown()
-	if err != nil {
-		l.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
-	}
-
-	err = grpcServer.Shutdown()
-	if err != nil {
-		l.Error(fmt.Errorf("app - Run - grpcServer.Shutdown: %w", err))
-	}
-
-	err = rmqServer.Shutdown()
-	if err != nil {
-		l.Error(fmt.Errorf("app - Run - rmqServer.Shutdown: %w", err))
-	}
-
-	err = natsServer.Shutdown()
-	if err != nil {
-		l.Error(fmt.Errorf("app - Run - natsServer.Shutdown: %w", err))
-	}
+	log.Info("API server stopped successfully")
 }

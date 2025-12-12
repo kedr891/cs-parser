@@ -19,9 +19,10 @@ type Config struct {
 type Connection struct {
 	ConsumerExchange string
 	Config
-	Connection *amqp.Connection
-	Channel    *amqp.Channel
-	Delivery   <-chan amqp.Delivery
+	Connection   *amqp.Connection
+	Channel      *amqp.Channel
+	Delivery     <-chan amqp.Delivery
+	DeliveryChan <-chan amqp.Delivery
 }
 
 // New -.

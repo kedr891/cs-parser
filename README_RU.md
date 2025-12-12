@@ -4,10 +4,10 @@
 
 Шаблон Чистой Архитектуры для приложений на Golang
 
-[![Release](https://img.shields.io/github/v/release/evrone/go-clean-template.svg)](https://github.com/evrone/go-clean-template/releases/)
-[![License](https://img.shields.io/badge/License-MIT-success)](https://github.com/evrone/go-clean-template/blob/master/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/evrone/go-clean-template)](https://goreportcard.com/report/github.com/evrone/go-clean-template)
-[![codecov](https://codecov.io/gh/evrone/go-clean-template/branch/master/graph/badge.svg?token=XE3E0X3EVQ)](https://codecov.io/gh/evrone/go-clean-template)
+[![Release](https://img.shields.io/github/v/release/cs-parser.svg)](https://github.com/cs-parser/releases/)
+[![License](https://img.shields.io/badge/License-MIT-success)](https://github.com/cs-parser/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/cs-parser)](https://goreportcard.com/report/github.com/cs-parser)
+[![codecov](https://codecov.io/gh/cs-parser/branch/master/graph/badge.svg?token=XE3E0X3EVQ)](https://codecov.io/gh/cs-parser)
 
 [![Web Framework](https://img.shields.io/badge/Fiber-Web%20Framework-blue)](https://github.com/gofiber/fiber)
 [![API Documentation](https://img.shields.io/badge/Swagger-API%20Documentation-blue)](https://github.com/swaggo/swag)
