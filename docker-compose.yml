@@ -38,6 +38,12 @@ x-app-environment: &x-app-environment
   PARSER_RATE_LIMIT_PER_MINUTE: "60"
   # Metrics
   METRICS_ENABLED: "true"
+  # RabbitMQ
+  RMQ_URL: "amqp://guest:guest@cs2_rabbitmq:5672/"
+  # NATS
+  NATS_URL: "nats://cs2_nats:4222/"
+  # Swagger
+  SWAGGER_ENABLED: "true"
 
 services:
   postgres:
@@ -110,7 +116,26 @@ services:
     networks:
       - cs2_network
 
-  # Parser Service
+  rabbitmq:
+    container_name: cs2_rabbitmq
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - cs2_network
+
+  nats:
+    container_name: cs2_nats
+    image: nats:latest
+    ports:
+      - "4222:4222"
+    networks:
+      - cs2_network
+
   parser:
     container_name: cs2_parser
     build:
@@ -125,11 +150,14 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      nats:
+        condition: service_started
     networks:
       - cs2_network
     restart: unless-stopped
 
-  # Price Consumer Service
   price-consumer:
     container_name: cs2_price_consumer
     build:
@@ -144,11 +172,14 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      nats:
+        condition: service_started
     networks:
       - cs2_network
     restart: unless-stopped
 
-  # API Gateway
   api:
     container_name: cs2_api
     build:
@@ -156,6 +187,7 @@ services:
       dockerfile: Dockerfile.api
     environment:
       <<: *x-app-environment
+      SWAGGER_ENABLED: "true"
     ports:
       - "8080:8080"
     depends_on:
@@ -167,7 +199,6 @@ services:
       - cs2_network
     restart: unless-stopped
 
-  # Notification Service
   notification:
     container_name: cs2_notification
     build:
@@ -180,6 +211,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      nats:
+        condition: service_started
     networks:
       - cs2_network
     restart: unless-stopped

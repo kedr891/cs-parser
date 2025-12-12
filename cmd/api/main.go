@@ -16,6 +16,10 @@ import (
 	"github.com/kedr891/cs-parser/pkg/logger"
 	"github.com/kedr891/cs-parser/pkg/postgres"
 	"github.com/kedr891/cs-parser/pkg/redis"
+
+	_ "github.com/kedr891/cs-parser/docs"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -81,6 +85,11 @@ func main() {
 			"version": cfg.App.Version,
 		})
 	})
+
+	// Swagger UI
+	if cfg.Swagger.Enabled {
+		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	// Start server
 	addr := ":" + cfg.HTTP.Port
