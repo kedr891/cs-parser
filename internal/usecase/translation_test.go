@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cs-parser/internal/entity"
-	"github.com/cs-parser/internal/usecase/translation"
+	"github.com/kedr891/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/internal/usecase/translation"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )

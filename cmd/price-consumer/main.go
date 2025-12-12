@@ -7,12 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/cs-parser/config"
-	"github.com/cs-parser/internal/price"
-	"github.com/cs-parser/pkg/kafka"
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/postgres"
-	"github.com/cs-parser/pkg/redis"
+	"github.com/kedr891/cs-parser/config"
+	"github.com/kedr891/cs-parser/internal/price"
+	"github.com/kedr891/cs-parser/pkg/kafka"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/postgres"
+	"github.com/kedr891/cs-parser/pkg/redis"
 )
 
 func main() {

@@ -9,14 +9,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cs-parser/config"
-	"github.com/cs-parser/internal/api/handler"
-	"github.com/cs-parser/internal/api/middleware"
-	"github.com/cs-parser/internal/api/router"
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/postgres"
-	"github.com/cs-parser/pkg/redis"
 	"github.com/gin-gonic/gin"
+	"github.com/kedr891/cs-parser/config"
+	"github.com/kedr891/cs-parser/internal/api/handler"
+	"github.com/kedr891/cs-parser/internal/api/middleware"
+	"github.com/kedr891/cs-parser/internal/api/router"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/postgres"
+	"github.com/kedr891/cs-parser/pkg/redis"
 )
 
 // Run initializes and starts the API application.

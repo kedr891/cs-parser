@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	natsrpc "github.com/cs-parser/pkg/nats/nats_rpc"
 	"github.com/goccy/go-json"
+	natsrpc "github.com/kedr891/cs-parser/pkg/nats/nats_rpc"
 	"github.com/nats-io/nats.go"
 )
 

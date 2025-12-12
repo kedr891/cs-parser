@@ -6,9 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/cs-parser/pkg/logger"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
+	"github.com/kedr891/cs-parser/pkg/logger"
 	"golang.org/x/sync/errgroup"
 )
 

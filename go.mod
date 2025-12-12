@@ -1,4 +1,4 @@
-module github.com/cs-parser
+module github.com/kedr891/cs-parser
 
 go 1.25
 

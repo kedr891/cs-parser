@@ -10,7 +10,7 @@ x-db-environment: &x-db-environment
 
 x-app-environment: &x-app-environment
   # App
-  APP_NAME: "cs-parser"
+  APP_NAME: "kedr891/cs-parser"
   APP_VERSION: "1.0.0"
   # HTTP settings
   HTTP_PORT: "8080"

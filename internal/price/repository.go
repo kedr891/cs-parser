@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cs-parser/internal/entity"
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/postgres"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/kedr891/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
 // Repository - интерфейс репозитория для price consumer

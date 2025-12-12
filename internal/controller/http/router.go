@@ -5,14 +5,14 @@ import (
 	"net/http"
 
 	"github.com/ansrivas/fiberprometheus/v2"
-	"github.com/cs-parser/config"
-	_ "github.com/cs-parser/docs" // Swagger docs.
-	"github.com/cs-parser/internal/controller/http/middleware"
-	v1 "github.com/cs-parser/internal/controller/http/v1"
-	"github.com/cs-parser/internal/usecase"
-	"github.com/cs-parser/pkg/logger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
+	"github.com/kedr891/cs-parser/config"
+	_ "github.com/kedr891/cs-parser/docs" // Swagger docs.
+	"github.com/kedr891/cs-parser/internal/controller/http/middleware"
+	v1 "github.com/kedr891/cs-parser/internal/controller/http/v1"
+	"github.com/kedr891/cs-parser/internal/usecase"
+	"github.com/kedr891/cs-parser/pkg/logger"
 )
 
 // NewRouter -.

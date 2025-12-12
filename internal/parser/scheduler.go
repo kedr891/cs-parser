@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/logger"
 )
 
 // Scheduler - планировщик задач парсинга

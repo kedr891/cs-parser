@@ -1,10 +1,10 @@
 package v1
 
 import (
-	v1 "github.com/cs-parser/docs/proto/v1"
-	"github.com/cs-parser/internal/usecase"
-	"github.com/cs-parser/pkg/logger"
 	"github.com/go-playground/validator/v10"
+	v1 "github.com/kedr891/cs-parser/docs/proto/v1"
+	"github.com/kedr891/cs-parser/internal/usecase"
+	"github.com/kedr891/cs-parser/pkg/logger"
 	pbgrpc "google.golang.org/grpc"
 )
 

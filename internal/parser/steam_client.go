@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/redis"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/redis"
 )
 
 const (

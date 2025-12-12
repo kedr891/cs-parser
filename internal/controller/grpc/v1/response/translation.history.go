@@ -1,8 +1,8 @@
 package response
 
 import (
-	v1 "github.com/cs-parser/docs/proto/v1"
-	"github.com/cs-parser/internal/entity"
+	v1 "github.com/kedr891/cs-parser/docs/proto/v1"
+	"github.com/kedr891/cs-parser/internal/entity"
 )
 
 // NewTranslationHistory -.

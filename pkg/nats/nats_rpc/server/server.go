@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cs-parser/pkg/logger"
-	natsrpc "github.com/cs-parser/pkg/nats/nats_rpc"
 	"github.com/goccy/go-json"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	natsrpc "github.com/kedr891/cs-parser/pkg/nats/nats_rpc"
 	"github.com/nats-io/nats.go"
 	"golang.org/x/sync/errgroup"
 )

@@ -4,7 +4,7 @@ package usecase
 import (
 	"context"
 
-	"github.com/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/internal/entity"
 )
 
 //go:generate mockgen -source=interfaces.go -destination=./mocks_usecase_test.go -package=usecase_test

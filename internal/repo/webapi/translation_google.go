@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	translator "github.com/Conight/go-googletrans"
-	"github.com/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/internal/entity"
 )
 
 // TranslationWebAPI -.

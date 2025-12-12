@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cs-parser/internal/entity"
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/redis"
+	"github.com/kedr891/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
 

@@ -1,9 +1,9 @@
 package grpc
 
 import (
-	v1 "github.com/cs-parser/internal/controller/grpc/v1"
-	"github.com/cs-parser/internal/usecase"
-	"github.com/cs-parser/pkg/logger"
+	v1 "github.com/kedr891/cs-parser/internal/controller/grpc/v1"
+	"github.com/kedr891/cs-parser/internal/usecase"
+	"github.com/kedr891/cs-parser/pkg/logger"
 	pbgrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )

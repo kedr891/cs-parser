@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cs-parser/pkg/postgres"
+	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
 // Repository предоставляет доступ к постоянному хранилищу.

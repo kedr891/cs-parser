@@ -3,8 +3,8 @@ package middleware
 import (
 	"time"
 
-	"github.com/cs-parser/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/kedr891/cs-parser/pkg/logger"
 )
 
 // Logger - middleware для логирования запросов

@@ -1,10 +1,10 @@
 package v1
 
 import (
-	v1 "github.com/cs-parser/internal/controller/nats_rpc/v1"
-	"github.com/cs-parser/internal/usecase"
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/nats/nats_rpc/server"
+	v1 "github.com/kedr891/cs-parser/internal/controller/nats_rpc/v1"
+	"github.com/kedr891/cs-parser/internal/usecase"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/nats/nats_rpc/server"
 )
 
 // NewRouter -.

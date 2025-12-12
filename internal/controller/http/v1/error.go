@@ -1,8 +1,8 @@
 package v1
 
 import (
-	"github.com/cs-parser/internal/controller/http/v1/response"
 	"github.com/gofiber/fiber/v2"
+	"github.com/kedr891/cs-parser/internal/controller/http/v1/response"
 )
 
 func errorResponse(ctx *fiber.Ctx, code int, msg string) error {

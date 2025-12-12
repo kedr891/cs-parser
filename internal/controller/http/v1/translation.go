@@ -3,9 +3,9 @@ package v1
 import (
 	"net/http"
 
-	"github.com/cs-parser/internal/controller/http/v1/request"
-	"github.com/cs-parser/internal/entity"
 	"github.com/gofiber/fiber/v2"
+	"github.com/kedr891/cs-parser/internal/controller/http/v1/request"
+	"github.com/kedr891/cs-parser/internal/entity"
 )
 
 // @Summary     Show history

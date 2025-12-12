@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cs-parser/pkg/rabbitmq/rmq_rpc/server"
+	"github.com/kedr891/cs-parser/pkg/rabbitmq/rmq_rpc/server"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

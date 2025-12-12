@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/cs-parser/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/kedr891/cs-parser/pkg/logger"
 )
 
 // AuthMiddleware - middleware для JWT аутентификации

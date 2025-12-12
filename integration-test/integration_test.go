@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	protov1 "github.com/cs-parser/docs/proto/v1"
-	natsClient "github.com/cs-parser/pkg/nats/nats_rpc/client"
-	rmqClient "github.com/cs-parser/pkg/rabbitmq/rmq_rpc/client"
 	"github.com/goccy/go-json"
+	protov1 "github.com/kedr891/cs-parser/docs/proto/v1"
+	natsClient "github.com/kedr891/cs-parser/pkg/nats/nats_rpc/client"
+	rmqClient "github.com/kedr891/cs-parser/pkg/rabbitmq/rmq_rpc/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

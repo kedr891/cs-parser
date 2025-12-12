@@ -7,14 +7,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cs-parser/internal/entity"
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/postgres"
-	"github.com/cs-parser/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/kedr891/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/postgres"
+	"github.com/kedr891/cs-parser/pkg/redis"
 )
 
 // UserHandler - обработчик для пользователей

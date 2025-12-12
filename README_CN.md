@@ -4,10 +4,10 @@
 
 golang服务的整洁架构模板
 
-[![Release](https://img.shields.io/github/v/release/cs-parser.svg)](https://github.com/cs-parser/releases/)
-[![License](https://img.shields.io/badge/License-MIT-success)](https://github.com/cs-parser/blob/master/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/cs-parser)](https://goreportcard.com/report/github.com/cs-parser)
-[![codecov](https://codecov.io/gh/cs-parser/branch/master/graph/badge.svg?token=XE3E0X3EVQ)](https://codecov.io/gh/cs-parser)
+[![Release](https://img.shields.io/github/v/release/kedr891/cs-parser.svg)](https://github.com/kedr891/cs-parser/releases/)
+[![License](https://img.shields.io/badge/License-MIT-success)](https://github.com/kedr891/cs-parser/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kedr891/cs-parser)](https://goreportcard.com/report/github.com/kedr891/cs-parser)
+[![codecov](https://codecov.io/gh/kedr891/cs-parser/branch/master/graph/badge.svg?token=XE3E0X3EVQ)](https://codecov.io/gh/kedr891/cs-parser)
 
 [![Web Framework](https://img.shields.io/badge/Fiber-Web%20Framework-blue)](https://github.com/gofiber/fiber)
 [![API Documentation](https://img.shields.io/badge/Swagger-API%20Documentation-blue)](https://github.com/swaggo/swag)

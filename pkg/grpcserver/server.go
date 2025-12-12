@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/logger"
 	"golang.org/x/sync/errgroup"
 	pbgrpc "google.golang.org/grpc"
 )

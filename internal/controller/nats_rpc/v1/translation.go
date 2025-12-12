@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cs-parser/pkg/nats/nats_rpc/server"
+	"github.com/kedr891/cs-parser/pkg/nats/nats_rpc/server"
 	"github.com/nats-io/nats.go"
 )
 

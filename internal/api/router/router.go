@@ -1,9 +1,9 @@
 package router
 
 import (
-	"github.com/cs-parser/internal/api/handler"
-	"github.com/cs-parser/internal/api/middleware"
 	"github.com/gin-gonic/gin"
+	"github.com/kedr891/cs-parser/internal/api/handler"
+	"github.com/kedr891/cs-parser/internal/api/middleware"
 )
 
 // SetupRoutes - настройка маршрутов API

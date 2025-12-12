@@ -27,7 +27,7 @@ type (
 
 	// App -.
 	App struct {
-		Name    string `env:"APP_NAME" envDefault:"cs-parser"`
+		Name    string `env:"APP_NAME" envDefault:"kedr891/cs-parser"`
 		Version string `env:"APP_VERSION" envDefault:"1.0.0"`
 	}
 

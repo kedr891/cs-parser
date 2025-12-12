@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cs-parser/internal/entity"
-	"github.com/cs-parser/pkg/kafka"
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/redis"
 	"github.com/google/uuid"
+	"github.com/kedr891/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/pkg/kafka"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/redis"
 	"golang.org/x/sync/errgroup"
 )
 

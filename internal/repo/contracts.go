@@ -4,7 +4,7 @@ package repo
 import (
 	"context"
 
-	"github.com/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/internal/entity"
 )
 
 //go:generate mockgen -source=contracts.go -destination=../usecase/mocks_repo_test.go -package=usecase_test

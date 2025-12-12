@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	v1 "github.com/cs-parser/docs/proto/v1"
-	"github.com/cs-parser/internal/controller/grpc/v1/response"
+	v1 "github.com/kedr891/cs-parser/docs/proto/v1"
+	"github.com/kedr891/cs-parser/internal/controller/grpc/v1/response"
 )
 
 func (r *V1) GetHistory(ctx context.Context, _ *v1.GetHistoryRequest) (*v1.GetHistoryResponse, error) {

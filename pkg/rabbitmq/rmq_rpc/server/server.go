@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cs-parser/pkg/logger"
-	rmqrpc "github.com/cs-parser/pkg/rabbitmq/rmq_rpc"
 	"github.com/goccy/go-json"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	rmqrpc "github.com/kedr891/cs-parser/pkg/rabbitmq/rmq_rpc"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"golang.org/x/sync/errgroup"
 )

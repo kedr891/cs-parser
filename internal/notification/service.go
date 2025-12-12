@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cs-parser/internal/entity"
-	"github.com/cs-parser/pkg/logger"
-	"github.com/cs-parser/pkg/redis"
 	"github.com/google/uuid"
+	"github.com/kedr891/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/pkg/logger"
+	"github.com/kedr891/cs-parser/pkg/redis"
 )
 
 // Service - сервис уведомлений
@@ -85,7 +85,8 @@ func (s *Service) SendNotification(ctx context.Context, notification *entity.Not
 
 // sendEmail - отправить email уведомление
 func (s *Service) sendEmail(ctx context.Context, notification *entity.Notification) error {
-	// TODO: Реализовать интеграцию с email сервисом (SendGrid, AWS SES, etc.)
+	//
+	// : Реализовать интеграцию с email сервисом (SendGrid, AWS SES, etc.)
 	s.log.Info("Email notification would be sent",
 		"notification_id", notification.ID,
 		"user_id", notification.UserID,

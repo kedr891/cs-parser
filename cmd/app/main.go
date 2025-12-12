@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/cs-parser/config"
-	"github.com/cs-parser/internal/app"
+	"github.com/kedr891/cs-parser/config"
+	"github.com/kedr891/cs-parser/internal/app"
 )
 
 func main() {

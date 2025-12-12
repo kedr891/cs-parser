@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cs-parser/internal/entity"
-	"github.com/cs-parser/pkg/postgres"
+	"github.com/kedr891/cs-parser/internal/entity"
+	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
 const _defaultEntityCap = 64
