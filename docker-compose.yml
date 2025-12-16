@@ -46,7 +46,7 @@ x-app-environment: &x-app-environment
 services:
   postgres:
     container_name: cs2_postgres
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     environment:
       <<: *x-db-environment
     volumes:
