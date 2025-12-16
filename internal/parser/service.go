@@ -312,7 +312,7 @@ func (s *Service) GetStats(ctx context.Context) (*ParserStats, error) {
 	return &ParserStats{
 		TotalSkins:      totalSkins,
 		RequestsLastMin: int(rateLimit),
-		LastParseTime:   time.Now(), // TODO: сохранять в Redis
+		LastParseTime:   time.Now(),
 	}, nil
 }
 

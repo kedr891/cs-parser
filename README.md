@@ -173,43 +173,6 @@ Server routers are written in the same style:
 - For each group, its own router structure is created, the methods of which process paths
 - The structure of the business logic is injected into the router structure, which will be called by the handlers
 
-#### `internal/controller/amqp_rpc`
-
-Simple RPC versioning.
-For v2, we will need to add the `amqp_rpc/v2` folder with the same content.
-And in the file `internal/controller/amqp_rpc/router.go` add the line:
-
-```go
-routes := make(map[string]server.CallHandler)
-
-{
-    v1.NewTranslationRoutes(routes, t, l)
-}
-
-{
-    v2.NewTranslationRoutes(routes, t, l)
-}
-```
-
-#### `internal/controller/grpc`
-
-Simple gRPC versioning.
-For v2, we will need to add the `grpc/v2` folder with the same content.
-Also add the `v2` folder to the proto files in `docs/proto`.
-And in the file `internal/controller/grpc/router.go` add the line:
-
-```go
-{
-    v1.NewTranslationRoutes(app, t, l)
-}
-
-{
-    v2.NewTranslationRoutes(app, t, l)
-}
-
-reflection.Register(app)
-```
-
 #### `internal/controller/http`
 
 Simple REST versioning.

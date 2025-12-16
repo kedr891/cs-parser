@@ -168,43 +168,6 @@ go run -tags migrate ./cmd/app
 - Для каждой группы создается свой маршрутизатор
 - Объект бизнес-логики передается в маршрутизатор, чтобы быть доступным внутри хэндлеров
 
-#### `internal/controller/amqp_rpc`
-
-Простое версионирование RPC.
-Для версии v2 нужно будет добавить папку `amqp_rpc/v2` с таким же содержимым.
-А в файле `internal/controller/amqp_rpc/router.go` добавить строку:
-
-```go
-routes := make(map[string]server.CallHandler)
-
-{
-    v1.NewTranslationRoutes(routes, t, l)
-}
-
-{
-    v2.NewTranslationRoutes(routes, t, l)
-}
-```
-
-#### `internal/controller/grpc`
-
-Простое версионирование gRPC.  
-Для версии v2 нужно будет добавить папку `grpc/v2` с таким же содержимым.  
-Также добавьте папку `v2` в proto-файлы в `docs/proto`.  
-И в файле `internal/controller/grpc/router.go` добавьте строку:
-
-```go
-{
-    v1.NewTranslationRoutes(app, t, l)
-}
-
-{
-    v2.NewTranslationRoutes(app, t, l)
-}
-
-reflection.Register(app)
-```
-
 #### `internal/controller/http`
 
 Простое версионирование REST API.

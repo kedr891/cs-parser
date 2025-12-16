@@ -164,11 +164,8 @@ go run -tags migrate ./cmd/app
 - 为每个组创建自己的路由器结构，其方法处理路径
 - 业务逻辑的结构被注入到路由器结构中，处理程序将调用它
 
-#### `internal/controller/amqp_rpc`
 
 简单的 RPC 版本控制。  
-对于 v2，我们需要添加 `amqp_rpc/v2` 文件夹，内容相同。  
-并在文件 `internal/controller/amqp_rpc/router.go` 中添加以下行：
 
 ```go
 routes := make(map[string]server.CallHandler)

@@ -28,12 +28,12 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/nats-io/nats.go v1.47.0
-	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/rs/zerolog v1.34.0
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/stretchr/testify v1.11.1
+	github.com/swaggo/files v1.0.1
+	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
 	go.uber.org/mock v0.6.0
 	golang.org/x/crypto v0.46.0
@@ -304,8 +304,6 @@ require (
 	github.com/mutecomm/go-sqlcipher/v4 v4.4.0 // indirect
 	github.com/nakabonne/nestif v0.3.1 // indirect
 	github.com/nakagami/firebirdsql v0.0.0-20190310045651-3c02a58cfed8 // indirect
-	github.com/nats-io/nkeys v0.4.12 // indirect
-	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/neo4j/neo4j-go-driver v1.8.1-0.20200803113522-b626aa943eba // indirect
 	github.com/nishanths/exhaustive v0.12.0 // indirect
 	github.com/nishanths/predeclared v0.2.2 // indirect
@@ -360,9 +358,7 @@ require (
 	github.com/stbenjam/no-sprintf-host-port v0.2.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
-	github.com/swaggo/files v1.0.1 // indirect
 	github.com/swaggo/files/v2 v2.0.2 // indirect
-	github.com/swaggo/gin-swagger v1.6.1 // indirect
 	github.com/tetafro/godot v1.5.4 // indirect
 	github.com/timakin/bodyclose v0.0.0-20241222091800-1db5c5ca4d67 // indirect
 	github.com/timonwong/loggercheck v0.11.0 // indirect

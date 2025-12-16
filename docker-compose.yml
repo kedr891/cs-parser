@@ -36,14 +36,11 @@ x-app-environment: &x-app-environment
   PARSER_RATE_LIMIT_PER_MINUTE: "60"
   # Metrics
   METRICS_ENABLED: "true"
-  # RabbitMQ
-  RMQ_URL: "amqp://guest:guest@cs2_rabbitmq:5672/"
-  # NATS
-  NATS_URL: "nats://cs2_nats:4222/"
   # Swagger
   SWAGGER_ENABLED: "true"
 
 services:
+  # PostgreSQL
   postgres:
     container_name: cs2_postgres
     image: postgres:18-alpine
@@ -61,6 +58,7 @@ services:
     networks:
       - cs2_network
 
+  # Redis
   redis:
     container_name: cs2_redis
     image: redis:8-alpine
@@ -77,36 +75,24 @@ services:
     networks:
       - cs2_network
 
-  zookeeper:
-    container_name: cs2_zookeeper
-    image: confluentinc/cp-zookeeper:7.9.1
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-      - zookeeper_logs:/var/lib/zookeeper/log
-    networks:
-      - cs2_network
-
+  # Kafka в режиме KRaft (без Zookeeper)
   kafka:
     container_name: cs2_kafka
     image: confluentinc/cp-kafka:8.1.1
-    depends_on:
-      - zookeeper
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@cs2_kafka:9093"
+      KAFKA_NUM_PARTITIONS: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_LOG_RETENTION_HOURS: 168
     volumes:
       - kafka_data:/var/lib/kafka/data
     ports:
-      - "29092:29092"
+      - "9092:9092"
     networks:
       - cs2_network
     healthcheck:
@@ -116,26 +102,7 @@ services:
       retries: 10
       start_period: 60s
 
-  rabbitmq:
-    container_name: cs2_rabbitmq
-    image: rabbitmq:4-management
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    networks:
-      - cs2_network
-
-  nats:
-    container_name: cs2_nats
-    image: nats:latest
-    ports:
-      - "4222:4222"
-    networks:
-      - cs2_network
-
+  # Parser service
   parser:
     container_name: cs2_parser
     build:
@@ -154,6 +121,7 @@ services:
       - cs2_network
     restart: unless-stopped
 
+  # Price consumer
   price-consumer:
     container_name: cs2_price_consumer
     build:
@@ -172,25 +140,7 @@ services:
       - cs2_network
     restart: unless-stopped
 
-  api:
-    container_name: cs2_api
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    environment:
-      <<: *x-app-environment
-      SWAGGER_ENABLED: "true"
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - cs2_network
-    restart: unless-stopped
-
+  # Notification service
   notification:
     container_name: cs2_notification
     build:
@@ -207,6 +157,28 @@ services:
       - cs2_network
     restart: unless-stopped
 
+  # API service
+  api:
+    container_name: cs2_api
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      <<: *x-app-environment
+      SWAGGER_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - cs2_network
+    restart: unless-stopped
+
 networks:
   cs2_network:
     driver: bridge
@@ -214,6 +186,4 @@ networks:
 volumes:
   postgres_data:
   redis_data:
-  zookeeper_data:
-  zookeeper_logs:
   kafka_data:

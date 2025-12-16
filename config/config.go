@@ -11,18 +11,16 @@ import (
 type (
 	// Config -.
 	Config struct {
-		App      App
-		HTTP     HTTP
-		Log      Log
-		PG       PG
-		Redis    Redis
-		Kafka    Kafka
-		RabbitMQ RabbitMQ
-		NATS     NATS
-		Parser   Parser
-		JWT      JWT
-		Metrics  Metrics
-		Swagger  Swagger
+		App     App
+		HTTP    HTTP
+		Log     Log
+		PG      PG
+		Redis   Redis
+		Kafka   Kafka
+		Parser  Parser
+		JWT     JWT
+		Metrics Metrics
+		Swagger Swagger
 	}
 
 	// App -.
@@ -62,18 +60,6 @@ type (
 		TopicPriceAlert     string   `env:"KAFKA_TOPIC_PRICE_ALERT" envDefault:"notification.price_alert"`
 		GroupPriceConsumer  string   `env:"KAFKA_GROUP_PRICE_CONSUMER" envDefault:"price-consumer-group"`
 		GroupNotification   string   `env:"KAFKA_GROUP_NOTIFICATION" envDefault:"notification-consumer-group"`
-	}
-
-	// RabbitMQ -.
-	RabbitMQ struct {
-		URL            string `env:"RMQ_URL,required"`
-		ServerExchange string `env:"RMQ_SERVER_EXCHANGE" envDefault:"cs_parser_rpc"`
-	}
-
-	// NATS -.
-	NATS struct {
-		URL            string `env:"NATS_URL,required"`
-		ServerExchange string `env:"NATS_SERVER_EXCHANGE" envDefault:"cs_parser_rpc"`
 	}
 
 	// Parser -.

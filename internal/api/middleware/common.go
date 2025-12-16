@@ -47,9 +47,7 @@ func CORS() gin.HandlerFunc {
 }
 
 // RateLimit - простой rate limiter на базе IP
-// В продакшене лучше использовать Redis-based rate limiter
 func RateLimit(requestsPerMinute int) gin.HandlerFunc {
-	// Упрощённая версия - в продакшене нужен Redis
 	return func(c *gin.Context) {
 		// TODO: Implement Redis-based rate limiting
 		c.Next()
