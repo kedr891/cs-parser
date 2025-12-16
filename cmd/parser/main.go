@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"github.com/kedr891/cs-parser/config"
-	"github.com/kedr891/cs-parser/internal/notification"
+	"github.com/kedr891/cs-parser/internal/parser"
 	"github.com/kedr891/cs-parser/pkg/kafka"
 	"github.com/kedr891/cs-parser/pkg/logger"
 	"github.com/kedr891/cs-parser/pkg/postgres"
@@ -23,7 +23,7 @@ func main() {
 
 	// Initialize logger
 	log := logger.New(cfg.Log.Level)
-	log.Info("Starting CS2 Notification Service", "version", cfg.App.Version)
+	log.Info("Starting CS2 Skin Parser Service", "version", cfg.App.Version)
 
 	// Initialize PostgreSQL
 	log.Info("Connecting to PostgreSQL...")
@@ -43,26 +43,49 @@ func main() {
 	defer rdb.Close()
 	log.Info("Redis connected successfully")
 
-	// Initialize Kafka Consumer for price updates
-	log.Info("Initializing Kafka consumer...")
-	consumer := kafka.NewConsumer(
+	// Initialize Kafka Producer
+	log.Info("Initializing Kafka producer...")
+	priceProducer, err := kafka.NewProducer(
 		cfg.Kafka.Brokers,
-		cfg.Kafka.TopicPriceUpdated, // заменено вместо TopicRawData
-		cfg.Kafka.GroupPriceConsumer,
+		cfg.Kafka.TopicPriceUpdated,
+		kafka.WithBatchSize(50),
 	)
-	defer consumer.Close()
-	log.Info("Kafka consumer initialized")
+	if err != nil {
+		log.Fatal("Failed to create price producer", "error", err)
+	}
+	defer priceProducer.Close()
+
+	discoveryProducer, err := kafka.NewProducer(
+		cfg.Kafka.Brokers,
+		cfg.Kafka.TopicSkinDiscovered,
+		kafka.WithBatchSize(20),
+	)
+	if err != nil {
+		log.Fatal("Failed to create discovery producer", "error", err)
+	}
+	defer discoveryProducer.Close()
+	log.Info("Kafka producers initialized")
 
 	// Initialize repository
-	repo := notification.NewRepository(pg, log)
+	repo := parser.NewRepository(pg, log)
 
-	// Initialize notification service
-	notifService := notification.NewService(repo, rdb, log)
+	// Initialize Steam client
+	steamClient := parser.NewSteamClient(rdb, log)
 
-	// Initialize notification consumer
-	notifConsumer := notification.NewConsumer(
-		consumer,
-		notifService,
+	// Initialize parser service
+	parserService := parser.NewService(
+		repo,
+		steamClient,
+		priceProducer,
+		discoveryProducer,
+		rdb,
+		log,
+	)
+
+	// Initialize scheduler
+	scheduler := parser.NewScheduler(
+		parserService,
+		cfg.Parser.IntervalMinutes,
 		log,
 	)
 
@@ -70,11 +93,11 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start consuming messages
-	log.Info("Starting notification consumer...")
+	// Start scheduler
+	log.Info("Starting parser scheduler", "interval_minutes", cfg.Parser.IntervalMinutes)
 	go func() {
-		if err := notifConsumer.Start(ctx); err != nil && err != context.Canceled {
-			log.Error("Consumer error", "error", err)
+		if err := scheduler.Start(ctx); err != nil {
+			log.Error("Scheduler error", "error", err)
 		}
 	}()
 
@@ -86,8 +109,8 @@ func main() {
 	log.Info("Received shutdown signal", "signal", sig.String())
 
 	// Graceful shutdown
-	log.Info("Shutting down notification service...")
+	log.Info("Shutting down parser service...")
 	cancel()
 
-	log.Info("Notification service stopped successfully")
+	log.Info("Parser service stopped successfully")
 }

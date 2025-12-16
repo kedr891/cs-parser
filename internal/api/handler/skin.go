@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -97,8 +98,10 @@ func (h *SkinHandler) GetSkins(c *gin.Context) {
 	// Получить скины из БД
 	skins, total, err := h.getSkinsFromDB(c.Request.Context(), filter)
 	if err != nil {
-		h.log.Error("Failed to get skins", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get skins"})
+		h.log.Error("Failed to get skins from DB", "error", err, "filter", filter)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get skins",
+		})
 		return
 	}
 
@@ -270,8 +273,8 @@ func (h *SkinHandler) generateCacheKey(filter *entity.SkinFilter) string {
 }
 
 func (h *SkinHandler) getSkinsFromDB(ctx context.Context, filter *entity.SkinFilter) ([]entity.Skin, int, error) {
-	// Simplified query - в реальном проекте используй query builder (squirrel)
-	query := `
+	// Базовый запрос
+	baseQuery := `
 		SELECT 
 			id, market_hash_name, name, weapon, quality, rarity,
 			current_price, currency, image_url, volume_24h,
@@ -279,47 +282,97 @@ func (h *SkinHandler) getSkinsFromDB(ctx context.Context, filter *entity.SkinFil
 			lowest_price, highest_price,
 			last_updated, created_at, updated_at
 		FROM skins
-		WHERE 1=1
 	`
 
-	countQuery := `SELECT COUNT(*) FROM skins WHERE 1=1`
+	countQuery := `SELECT COUNT(*) FROM skins`
 
+	// WHERE условия
+	conditions := []string{}
 	args := []interface{}{}
 	argIndex := 1
 
 	// Добавить фильтры
 	if filter.Weapon != "" {
-		query += fmt.Sprintf(" AND weapon = $%d", argIndex)
-		countQuery += fmt.Sprintf(" AND weapon = $%d", argIndex)
+		conditions = append(conditions, fmt.Sprintf("weapon = $%d", argIndex))
 		args = append(args, filter.Weapon)
 		argIndex++
 	}
 
 	if filter.Quality != "" {
-		query += fmt.Sprintf(" AND quality = $%d", argIndex)
-		countQuery += fmt.Sprintf(" AND quality = $%d", argIndex)
+		conditions = append(conditions, fmt.Sprintf("quality = $%d", argIndex))
 		args = append(args, filter.Quality)
 		argIndex++
 	}
 
 	if filter.Search != "" {
-		query += fmt.Sprintf(" AND (name ILIKE $%d OR market_hash_name ILIKE $%d)", argIndex, argIndex)
-		countQuery += fmt.Sprintf(" AND (name ILIKE $%d OR market_hash_name ILIKE $%d)", argIndex, argIndex)
+		conditions = append(conditions, fmt.Sprintf("(name ILIKE $%d OR market_hash_name ILIKE $%d)", argIndex, argIndex))
 		args = append(args, "%"+filter.Search+"%")
 		argIndex++
 	}
 
+	if filter.MinPrice > 0 {
+		conditions = append(conditions, fmt.Sprintf("current_price >= $%d", argIndex))
+		args = append(args, filter.MinPrice)
+		argIndex++
+	}
+
+	if filter.MaxPrice > 0 {
+		conditions = append(conditions, fmt.Sprintf("current_price <= $%d", argIndex))
+		args = append(args, filter.MaxPrice)
+		argIndex++
+	}
+
+	// Собрать WHERE
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = " WHERE " + strings.Join(conditions, " AND ")
+	}
+
 	// Получить total count
 	var total int
-	if err := h.pg.Pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+	countQueryFull := countQuery + whereClause
+	if err := h.pg.Pool.QueryRow(ctx, countQueryFull, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count skins: %w", err)
 	}
 
-	// Добавить сортировку и пагинацию
-	query += fmt.Sprintf(" ORDER BY %s %s LIMIT $%d OFFSET $%d", filter.SortBy, filter.SortOrder, argIndex, argIndex+1)
+	// Если нет данных, вернуть пустой массив
+	if total == 0 {
+		return []entity.Skin{}, 0, nil
+	}
+
+	sortBy := "updated_at"
+	if filter.SortBy != "" {
+		switch filter.SortBy {
+		case "price":
+			sortBy = "current_price"
+		case "volume":
+			sortBy = "volume_24h"
+		case "name":
+			sortBy = "name"
+		case "updated":
+			sortBy = "updated_at"
+		case "created":
+			sortBy = "created_at"
+		case "weapon":
+			sortBy = "weapon"
+		default:
+			sortBy = "updated_at"
+		}
+	}
+
+	// Валидация sort order
+	sortOrder := "DESC"
+	if strings.ToUpper(filter.SortOrder) == "ASC" {
+		sortOrder = "ASC"
+	}
+
+	// Полный запрос с сортировкой и пагинацией
+	fullQuery := baseQuery + whereClause +
+		fmt.Sprintf(" ORDER BY %s %s LIMIT $%d OFFSET $%d", sortBy, sortOrder, argIndex, argIndex+1)
+
 	args = append(args, filter.Limit, filter.Offset)
 
-	rows, err := h.pg.Pool.Query(ctx, query, args...)
+	rows, err := h.pg.Pool.Query(ctx, fullQuery, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query skins: %w", err)
 	}
@@ -339,6 +392,10 @@ func (h *SkinHandler) getSkinsFromDB(ctx context.Context, filter *entity.SkinFil
 			return nil, 0, fmt.Errorf("scan skin: %w", err)
 		}
 		skins = append(skins, skin)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
 
 	return skins, total, nil
