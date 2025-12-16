@@ -63,7 +63,7 @@ services:
 
   redis:
     container_name: cs2_redis
-    image: redis:7-alpine
+    image: redis:8-alpine
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
