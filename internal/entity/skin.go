@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,6 +11,7 @@ import (
 // Skin - модель скина CS2
 type Skin struct {
 	ID             uuid.UUID `json:"id" db:"id"`
+	Slug           string    `json:"slug" db:"slug"`
 	MarketHashName string    `json:"market_hash_name" db:"market_hash_name"`
 	Name           string    `json:"name" db:"name"`
 	Weapon         string    `json:"weapon" db:"weapon"`
@@ -25,6 +28,37 @@ type Skin struct {
 	LastUpdated    time.Time `json:"last_updated" db:"last_updated"`
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// GenerateSlug - генерировать slug из market_hash_name
+// Пример: "AWP | Acheron (Field-Tested)" -> "awp_acheron_ft"
+func GenerateSlug(marketHashName string) string {
+	slug := strings.ToLower(marketHashName)
+
+	// Заменить качества на аббревиатуры
+	qualityReplacements := map[string]string{
+		"(factory new)":    "fn",
+		"(minimal wear)":   "mw",
+		"(field-tested)":   "ft",
+		"(well-worn)":      "ww",
+		"(battle-scarred)": "bs",
+	}
+
+	for full, abbr := range qualityReplacements {
+		slug = strings.ReplaceAll(slug, full, abbr)
+	}
+
+	// Убрать скобки и спецсимволы
+	slug = regexp.MustCompile(`[|()\[\]{}]`).ReplaceAllString(slug, "")
+
+	// Заменить пробелы и другие символы на подчеркивание
+	slug = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(slug, "_")
+
+	// Убрать лишние подчеркивания
+	slug = strings.Trim(slug, "_")
+	slug = regexp.MustCompile(`_+`).ReplaceAllString(slug, "_")
+
+	return slug
 }
 
 // SkinQuality - качество скина
@@ -71,6 +105,7 @@ func NewSkin(marketHashName, name, weapon, quality string) *Skin {
 	now := time.Now()
 	return &Skin{
 		ID:             uuid.New(),
+		Slug:           GenerateSlug(marketHashName), // ✅ Автогенерация slug
 		MarketHashName: marketHashName,
 		Name:           name,
 		Weapon:         weapon,
@@ -202,4 +237,26 @@ type TrendingSkin struct {
 	Skin            Skin    `json:"skin"`
 	PriceChangeRate float64 `json:"price_change_rate"`
 	Rank            int     `json:"rank"`
+}
+
+// SkinSlugResponse - краткий ответ со slug
+type SkinSlugResponse struct {
+	ID             uuid.UUID `json:"id"`
+	Slug           string    `json:"slug"`
+	MarketHashName string    `json:"market_hash_name"`
+	Name           string    `json:"name"`
+	CurrentPrice   float64   `json:"current_price"`
+	ImageURL       string    `json:"image_url"`
+}
+
+// ToSlugResponse - конвертировать в краткий ответ
+func (s *Skin) ToSlugResponse() SkinSlugResponse {
+	return SkinSlugResponse{
+		ID:             s.ID,
+		Slug:           s.Slug,
+		MarketHashName: s.MarketHashName,
+		Name:           s.Name,
+		CurrentPrice:   s.CurrentPrice,
+		ImageURL:       s.ImageURL,
+	}
 }

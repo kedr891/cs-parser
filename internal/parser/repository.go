@@ -14,7 +14,7 @@ import (
 // Repository - интерфейс репозитория для парсера
 type Repository interface {
 	GetAllSkins(ctx context.Context) ([]entity.Skin, error)
-	GetSkinByID(ctx context.Context, id uuid.UUID) (*entity.Skin, error)
+	GetSkinBySlug(ctx context.Context, slug string) (*entity.Skin, error)
 	GetSkinByMarketHashName(ctx context.Context, marketHashName string) (*entity.Skin, error)
 	SkinExists(ctx context.Context, marketHashName string) (bool, error)
 	CreateSkin(ctx context.Context, skin *entity.Skin) error
@@ -41,7 +41,7 @@ func NewRepository(pg *postgres.Postgres, log *logger.Logger) Repository {
 func (r *repository) GetAllSkins(ctx context.Context) ([]entity.Skin, error) {
 	query := `
 		SELECT 
-			id, market_hash_name, name, weapon, quality, rarity,
+			id, slug, market_hash_name, name, weapon, quality, rarity,
 			current_price, currency, image_url, volume_24h,
 			price_change_24h, price_change_7d,
 			lowest_price, highest_price,
@@ -61,6 +61,7 @@ func (r *repository) GetAllSkins(ctx context.Context) ([]entity.Skin, error) {
 		var skin entity.Skin
 		err := rows.Scan(
 			&skin.ID,
+			&skin.Slug,
 			&skin.MarketHashName,
 			&skin.Name,
 			&skin.Weapon,
@@ -91,42 +92,30 @@ func (r *repository) GetAllSkins(ctx context.Context) ([]entity.Skin, error) {
 	return skins, nil
 }
 
-// GetSkinByID - получить скин по ID
-func (r *repository) GetSkinByID(ctx context.Context, id uuid.UUID) (*entity.Skin, error) {
+// GetSkinBySlug - получить скин по slug
+func (r *repository) GetSkinBySlug(ctx context.Context, slug string) (*entity.Skin, error) {
 	query := `
 		SELECT 
-			id, market_hash_name, name, weapon, quality, rarity,
+			id, slug, market_hash_name, name, weapon, quality, rarity,
 			current_price, currency, image_url, volume_24h,
 			price_change_24h, price_change_7d,
 			lowest_price, highest_price,
 			last_updated, created_at, updated_at
 		FROM skins
-		WHERE id = $1
+		WHERE slug = $1
 	`
 
 	var skin entity.Skin
-	err := r.pg.Pool.QueryRow(ctx, query, id).Scan(
-		&skin.ID,
-		&skin.MarketHashName,
-		&skin.Name,
-		&skin.Weapon,
-		&skin.Quality,
-		&skin.Rarity,
-		&skin.CurrentPrice,
-		&skin.Currency,
-		&skin.ImageURL,
-		&skin.Volume24h,
-		&skin.PriceChange24h,
-		&skin.PriceChange7d,
-		&skin.LowestPrice,
-		&skin.HighestPrice,
-		&skin.LastUpdated,
-		&skin.CreatedAt,
-		&skin.UpdatedAt,
+	err := r.pg.Pool.QueryRow(ctx, query, slug).Scan(
+		&skin.ID, &skin.Slug, &skin.MarketHashName, &skin.Name, &skin.Weapon, &skin.Quality, &skin.Rarity,
+		&skin.CurrentPrice, &skin.Currency, &skin.ImageURL, &skin.Volume24h,
+		&skin.PriceChange24h, &skin.PriceChange7d,
+		&skin.LowestPrice, &skin.HighestPrice,
+		&skin.LastUpdated, &skin.CreatedAt, &skin.UpdatedAt,
 	)
 
 	if err == pgx.ErrNoRows {
-		return nil, fmt.Errorf("skin not found: %s", id)
+		return nil, fmt.Errorf("skin not found")
 	}
 	if err != nil {
 		return nil, fmt.Errorf("query skin: %w", err)

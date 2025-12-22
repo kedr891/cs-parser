@@ -212,6 +212,8 @@ definitions:
         type: string
       rarity:
         type: string
+      slug:
+        type: string
       updated_at:
         type: string
       volume_24h:
@@ -280,15 +282,6 @@ definitions:
           $ref: '#/definitions/entity.Translation'
         type: array
     type: object
-  entity.TrendingSkin:
-    properties:
-      price_change_rate:
-        type: number
-      rank:
-        type: integer
-      skin:
-        $ref: '#/definitions/entity.Skin'
-    type: object
   entity.UserResponse:
     properties:
       created_at:
@@ -316,6 +309,19 @@ definitions:
     x-enum-varnames:
     - RoleUser
     - RoleAdmin
+  entity.UserStats:
+    properties:
+      active_alerts:
+        type: integer
+      member_since:
+        type: string
+      total_notifications:
+        type: integer
+      total_watchlist:
+        type: integer
+      unread_notifications:
+        type: integer
+    type: object
   entity.Watchlist:
     properties:
       added_at:
@@ -428,7 +434,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/entity.TrendingSkin'
+              $ref: '#/definitions/entity.Skin'
             type: array
       summary: Get trending skins
       tags:
@@ -514,28 +520,32 @@ paths:
       summary: Get skins list
       tags:
       - skins
-  /api/v1/skins/{id}:
+  /api/v1/skins/{slug}:
     get:
       parameters:
-      - description: Skin ID
+      - description: Skin slug (e.g., awp_acheron_ft)
         in: path
-        name: id
+        name: slug
         required: true
+        type: string
+      - description: 'Period: 24h, 7d, 30d, 90d, 1y, all'
+        in: query
+        name: period
         type: string
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/entity.SkinDetailResponse'
-      summary: Get skin by ID
+      summary: Get skin by slug
       tags:
       - skins
-  /api/v1/skins/{id}/chart:
+  /api/v1/skins/chart/{slug}:
     get:
       parameters:
-      - description: Skin ID
+      - description: Skin slug
         in: path
-        name: id
+        name: slug
         required: true
         type: string
       - description: 'Period: 24h, 7d, 30d, 90d, 1y, all'
@@ -548,6 +558,23 @@ paths:
           schema:
             $ref: '#/definitions/entity.PriceChartResponse'
       summary: Get price chart
+      tags:
+      - skins
+  /api/v1/skins/popular:
+    get:
+      parameters:
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/entity.Skin'
+            type: array
+      summary: Get popular skins
       tags:
       - skins
   /api/v1/skins/search:
@@ -620,6 +647,18 @@ paths:
       security:
       - BearerAuth: []
       summary: Mark notifications as read
+      tags:
+      - users
+  /api/v1/users/me/stats:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.UserStats'
+      security:
+      - BearerAuth: []
+      summary: Get user stats
       tags:
       - users
   /api/v1/users/me/watchlist:

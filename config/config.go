@@ -15,6 +15,7 @@ type (
 		HTTP    HTTP
 		Log     Log
 		PG      PG
+		Shard   Shard
 		Redis   Redis
 		Kafka   Kafka
 		Parser  Parser
@@ -42,7 +43,13 @@ type (
 	// PG -.
 	PG struct {
 		PoolMax int    `env:"PG_POOL_MAX" envDefault:"10"`
-		URL     string `env:"PG_URL,required"`
+		URL     string `env:"PG_URL"` // Убрали required - теперь опционально
+	}
+
+	// Shard - конфигурация шардирования
+	Shard struct {
+		Enabled bool     `env:"SHARD_ENABLED" envDefault:"false"`
+		URLs    []string `env:"SHARD_URLS" envSeparator:","`
 	}
 
 	// Redis -.
@@ -110,5 +117,27 @@ func NewConfig() (*Config, error) {
 		cfg.Kafka.Brokers = []string{"localhost:9092"}
 	}
 
+	// Validate database configuration
+	if !cfg.IsShardingEnabled() && cfg.PG.URL == "" {
+		return nil, fmt.Errorf("PG_URL is required when sharding is disabled")
+	}
+
+	if cfg.IsShardingEnabled() && len(cfg.Shard.URLs) == 0 {
+		return nil, fmt.Errorf("SHARD_URLS is required when sharding is enabled")
+	}
+
 	return cfg, nil
+}
+
+// GetShardURLs - получить URL'ы шардов
+func (c *Config) GetShardURLs() []string {
+	if c.Shard.Enabled && len(c.Shard.URLs) > 0 {
+		return c.Shard.URLs
+	}
+	return []string{c.PG.URL}
+}
+
+// IsShardingEnabled - проверить, включено ли шардирование
+func (c *Config) IsShardingEnabled() bool {
+	return c.Shard.Enabled && len(c.Shard.URLs) > 1
 }

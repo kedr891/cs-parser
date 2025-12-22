@@ -6,27 +6,26 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kedr891/cs-parser/internal/domain"
 	"github.com/kedr891/cs-parser/internal/entity"
-	"github.com/kedr891/cs-parser/pkg/logger"
-	"github.com/kedr891/cs-parser/pkg/redis"
 )
 
 // Service - сервис уведомлений
 type Service struct {
 	repo  Repository
-	redis *redis.Redis
-	log   *logger.Logger
+	cache domain.CacheStorage
+	log   domain.Logger
 }
 
 // NewService - создать сервис уведомлений
 func NewService(
 	repo Repository,
-	redis *redis.Redis,
-	log *logger.Logger,
+	cache domain.CacheStorage,
+	log domain.Logger,
 ) *Service {
 	return &Service{
 		repo:  repo,
-		redis: redis,
+		cache: cache,
 		log:   log,
 	}
 }
@@ -85,8 +84,7 @@ func (s *Service) SendNotification(ctx context.Context, notification *entity.Not
 
 // sendEmail - отправить email уведомление
 func (s *Service) sendEmail(ctx context.Context, notification *entity.Notification) error {
-	//
-	// : Реализовать интеграцию с email сервисом (SendGrid, AWS SES, etc.)
+	// TODO: Реализовать интеграцию с email сервисом (SendGrid, AWS SES, etc.)
 	s.log.Info("Email notification would be sent",
 		"notification_id", notification.ID,
 		"user_id", notification.UserID,
@@ -130,7 +128,7 @@ func (s *Service) GetUserPreferences(ctx context.Context, userID uuid.UUID) (*en
 func (s *Service) WasAlertSent(ctx context.Context, userID, skinID uuid.UUID) (bool, error) {
 	key := fmt.Sprintf("alerts:sent:%s:%s", userID.String(), skinID.String())
 
-	_, err := s.redis.GetCache(ctx, key)
+	_, err := s.cache.Get(ctx, key)
 	if err != nil {
 		return false, nil // алерт не отправлялся
 	}
@@ -143,7 +141,7 @@ func (s *Service) TrackAlertSent(ctx context.Context, userID, skinID uuid.UUID) 
 	key := fmt.Sprintf("alerts:sent:%s:%s", userID.String(), skinID.String())
 
 	// Сохраняем на 1 час, чтобы не отправлять алерт повторно
-	return s.redis.SetCache(ctx, key, "1", time.Hour)
+	return s.cache.Set(ctx, key, "1", time.Hour)
 }
 
 // GetNotifications - получить уведомления пользователя

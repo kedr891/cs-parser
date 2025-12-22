@@ -10,9 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kedr891/cs-parser/config"
+	"github.com/kedr891/cs-parser/internal/api"
 	"github.com/kedr891/cs-parser/internal/api/handler"
 	"github.com/kedr891/cs-parser/internal/api/middleware"
+	apiRepo "github.com/kedr891/cs-parser/internal/api/repository"
 	"github.com/kedr891/cs-parser/internal/api/router"
+	"github.com/kedr891/cs-parser/internal/api/service"
 	"github.com/kedr891/cs-parser/pkg/logger"
 	"github.com/kedr891/cs-parser/pkg/postgres"
 	"github.com/kedr891/cs-parser/pkg/redis"
@@ -51,6 +54,25 @@ func main() {
 	defer rdb.Close()
 	log.Info("Redis connected successfully")
 
+	// Initialize adapters (from api package, NOT parser!)
+	redisAdapter := api.NewRedisAdapter(rdb)
+	logAdapter := api.NewLoggerAdapter(log)
+
+	// Initialize repositories
+	skinRepo := apiRepo.NewSkinRepository(pg)
+	userRepo := apiRepo.NewUserRepository(pg)
+	analyticsRepo := apiRepo.NewAnalyticsRepository(pg)
+
+	// Initialize services with interfaces
+	skinService := service.NewSkinService(skinRepo, redisAdapter, logAdapter)
+	userService := service.NewUserService(userRepo, redisAdapter, cfg.JWT.Secret, logAdapter)
+	analyticsService := service.NewAnalyticsService(analyticsRepo, redisAdapter, logAdapter)
+
+	// Initialize handlers with services
+	skinHandler := handler.NewSkinHandler(skinService, logAdapter)
+	userHandler := handler.NewUserHandler(userService, logAdapter)
+	analyticsHandler := handler.NewAnalyticsHandler(analyticsService, logAdapter)
+
 	// Set Gin mode
 	if cfg.Log.Level == "debug" {
 		gin.SetMode(gin.DebugMode)
@@ -65,11 +87,6 @@ func main() {
 	engine.Use(gin.Recovery())
 	engine.Use(middleware.Logger(log))
 	engine.Use(middleware.CORS())
-
-	// Initialize handlers
-	skinHandler := handler.NewSkinHandler(pg, rdb, log)
-	userHandler := handler.NewUserHandler(pg, rdb, cfg.JWT.Secret, log)
-	analyticsHandler := handler.NewAnalyticsHandler(pg, rdb, log)
 
 	// Initialize auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(cfg.JWT.Secret, log)
@@ -89,6 +106,7 @@ func main() {
 	// Swagger UI
 	if cfg.Swagger.Enabled {
 		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+		log.Info("Swagger UI available at /swagger/index.html")
 	}
 
 	// Start server
@@ -96,8 +114,11 @@ func main() {
 	log.Info("Starting HTTP server", "addr", addr)
 
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: engine,
+		Addr:           addr,
+		Handler:        engine,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
 	// Start server in goroutine

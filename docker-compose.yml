@@ -1,7 +1,5 @@
 x-db-environment: &x-db-environment
   POSTGRES_SSL_MODE: "disable"
-  POSTGRES_HOST: "postgres"
-  POSTGRES_PORT: "5432"
   POSTGRES_DB: "cs2_skins"
   POSTGRES_PASSWORD: "cs2_secure_pass_2024"
   POSTGRES_USER: "cs2_user"
@@ -14,9 +12,12 @@ x-app-environment: &x-app-environment
   HTTP_PORT: "8080"
   # Logger
   LOG_LEVEL: "debug"
-  # PostgreSQL
+  # PostgreSQL (без шардирования)
   PG_POOL_MAX: "10"
   PG_URL: "postgres://cs2_user:cs2_secure_pass_2024@postgres:5432/cs2_skins?sslmode=disable"
+  # Sharding
+  SHARD_ENABLED: "true"
+  SHARD_URLS: "postgres://cs2_user:cs2_secure_pass_2024@postgres_shard_pistols:5432/cs2_skins?sslmode=disable,postgres://cs2_user:cs2_secure_pass_2024@postgres_shard_rifles:5432/cs2_skins?sslmode=disable,postgres://cs2_user:cs2_secure_pass_2024@postgres_shard_other:5432/cs2_skins?sslmode=disable"
   # Redis
   REDIS_ADDR: "redis:6379"
   REDIS_PASSWORD: ""
@@ -40,12 +41,14 @@ x-app-environment: &x-app-environment
   SWAGGER_ENABLED: "true"
 
 services:
-  # PostgreSQL
+  # PostgreSQL - основная БД(без шардирования)
   postgres:
     container_name: cs2_postgres
     image: postgres:18-alpine
     environment:
       <<: *x-db-environment
+      POSTGRES_HOST: "postgres"
+      POSTGRES_PORT: "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -57,6 +60,66 @@ services:
       retries: 5
     networks:
       - cs2_network
+
+  # PostgreSQL Shard pistols
+  postgres_shard_pistols:
+    container_name: cs2_postgres_pistols
+    image: postgres:18-alpine
+    environment:
+      <<: *x-db-environment
+    volumes:
+      - postgres_pistols_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cs2_user -d cs2_skins"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cs2_network
+    profiles:
+      - sharding
+
+  # PostgreSQL Shard rifles
+  postgres_shard_rifles:
+    container_name: cs2_postgres_rifles
+    image: postgres:18-alpine
+    environment:
+      <<: *x-db-environment
+    volumes:
+      - postgres_rifles_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cs2_user -d cs2_skins"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cs2_network
+    profiles:
+      - sharding
+
+  # PostgreSQL Shard other
+  postgres_shard_other:
+    container_name: cs2_postgres_other
+    image: postgres:18-alpine
+    environment:
+      <<: *x-db-environment
+    volumes:
+      - postgres_other_data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cs2_user -d cs2_skins"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cs2_network
+    profiles:
+      - sharding
 
   # Redis
   redis:
@@ -74,8 +137,6 @@ services:
       retries: 5
     networks:
       - cs2_network
-
-  # Kafka в режиме KRaft (без Zookeeper)
   kafka:
     container_name: cs2_kafka
     image: confluentinc/cp-kafka:8.1.1
@@ -101,6 +162,31 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+
+  # AKHQ - Kafka UI
+  akhq:
+    container_name: cs2_akhq
+    image: tchiotludo/akhq:latest
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            cs2-kafka:
+              properties:
+                bootstrap.servers: "kafka:9092"
+              schema-registry:
+                url: ""
+              connect:
+                - name: ""
+                  url: ""
+    ports:
+      - "8081:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - cs2_network
+    restart: unless-stopped
 
   # Parser service
   parser:
@@ -185,5 +271,8 @@ networks:
 
 volumes:
   postgres_data:
+  postgres_pistols_data:
+  postgres_rifles_data:
+  postgres_other_data:
   redis_data:
   kafka_data:

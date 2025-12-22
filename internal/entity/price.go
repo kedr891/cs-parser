@@ -43,6 +43,7 @@ func NewPriceHistory(skinID uuid.UUID, price float64, source string, volume int)
 // PriceUpdateEvent - событие обновления цены для Kafka
 type PriceUpdateEvent struct {
 	SkinID         uuid.UUID `json:"skin_id"`
+	Slug           string    `json:"slug"`
 	MarketHashName string    `json:"market_hash_name"`
 	Source         string    `json:"source"`
 	OldPrice       float64   `json:"old_price"`
@@ -54,7 +55,7 @@ type PriceUpdateEvent struct {
 }
 
 // NewPriceUpdateEvent - создать событие обновления цены
-func NewPriceUpdateEvent(skinID uuid.UUID, marketHashName, source string, oldPrice, newPrice float64, volume int) *PriceUpdateEvent {
+func NewPriceUpdateEvent(skinID uuid.UUID, slug, marketHashName, source string, oldPrice, newPrice float64, volume int) *PriceUpdateEvent {
 	priceChange := 0.0
 	if oldPrice > 0 {
 		priceChange = ((newPrice - oldPrice) / oldPrice) * 100
@@ -62,6 +63,7 @@ func NewPriceUpdateEvent(skinID uuid.UUID, marketHashName, source string, oldPri
 
 	return &PriceUpdateEvent{
 		SkinID:         skinID,
+		Slug:           slug,
 		MarketHashName: marketHashName,
 		Source:         source,
 		OldPrice:       oldPrice,

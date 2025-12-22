@@ -6,46 +6,42 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/kedr891/cs-parser/internal/domain"
 	"github.com/kedr891/cs-parser/internal/entity"
-	"github.com/kedr891/cs-parser/pkg/kafka"
-	"github.com/kedr891/cs-parser/pkg/logger"
-	"github.com/kedr891/cs-parser/pkg/redis"
 	"golang.org/x/sync/errgroup"
 )
 
 const (
-	_defaultBatchSize = 50
-	_defaultWorkers   = 10
-	_rateLimitKey     = "rate_limit:parser:steam_market"
-	_rateLimitTTL     = time.Minute
+	_defaultWorkers = 10
+	_rateLimitKey   = "rate_limit:parser:steam_market"
+	_rateLimitTTL   = time.Minute
 )
 
 // Service - сервис парсинга цен
 type Service struct {
-	repo              Repository
-	steamClient       *SteamClient
-	priceProducer     *kafka.Producer
-	discoveryProducer *kafka.Producer
-	redis             *redis.Redis
-	log               *logger.Logger
+	repo              domain.SkinRepository
+	marketClient      domain.MarketClient
+	priceProducer     domain.MessageProducer
+	discoveryProducer domain.MessageProducer
+	cache             domain.CacheStorage
+	log               domain.Logger
 }
 
 // NewService - создать сервис парсинга
 func NewService(
-	repo Repository,
-	steamClient *SteamClient,
-	priceProducer *kafka.Producer,
-	discoveryProducer *kafka.Producer,
-	redis *redis.Redis,
-	log *logger.Logger,
+	repo domain.SkinRepository,
+	marketClient domain.MarketClient,
+	priceProducer domain.MessageProducer,
+	discoveryProducer domain.MessageProducer,
+	cache domain.CacheStorage,
+	log domain.Logger,
 ) *Service {
 	return &Service{
 		repo:              repo,
-		steamClient:       steamClient,
+		marketClient:      marketClient,
 		priceProducer:     priceProducer,
 		discoveryProducer: discoveryProducer,
-		redis:             redis,
+		cache:             cache,
 		log:               log,
 	}
 }
@@ -133,7 +129,7 @@ func (s *Service) parseSingleSkin(ctx context.Context, skin *entity.Skin) error 
 	}
 
 	// Получить цену из Steam Market
-	priceData, err := s.steamClient.GetItemPrice(ctx, skin.MarketHashName)
+	priceData, err := s.marketClient.GetItemPrice(ctx, skin.MarketHashName)
 	if err != nil {
 		return fmt.Errorf("get steam price: %w", err)
 	}
@@ -148,13 +144,14 @@ func (s *Service) parseSingleSkin(ctx context.Context, skin *entity.Skin) error 
 
 	// Инвалидировать кэш
 	cacheKey := fmt.Sprintf("skin:price:%s", skin.ID.String())
-	if err := s.redis.DeleteCache(ctx, cacheKey); err != nil {
+	if err := s.cache.Delete(ctx, cacheKey); err != nil {
 		s.log.Warn("Failed to invalidate cache", "key", cacheKey, "error", err)
 	}
 
 	// Создать событие обновления цены
 	priceEvent := entity.NewPriceUpdateEvent(
 		skin.ID,
+		skin.Slug,
 		skin.MarketHashName,
 		string(entity.SourceSteamMarket),
 		oldPrice,
@@ -186,7 +183,7 @@ func (s *Service) DiscoverNewSkins(ctx context.Context, searchQuery string) erro
 	s.log.Info("Starting skin discovery", "query", searchQuery)
 
 	// Поиск скинов через Steam API
-	items, err := s.steamClient.SearchItems(ctx, searchQuery)
+	items, err := s.marketClient.SearchItems(ctx, searchQuery)
 	if err != nil {
 		return fmt.Errorf("search items: %w", err)
 	}
@@ -254,14 +251,14 @@ func (s *Service) DiscoverNewSkins(ctx context.Context, searchQuery string) erro
 }
 
 // ParseSpecificSkins - парсинг конкретных скинов по ID
-func (s *Service) ParseSpecificSkins(ctx context.Context, skinIDs []uuid.UUID) error {
-	s.log.Info("Starting specific skins parsing", "count", len(skinIDs))
+func (s *Service) ParseSpecificSkins(ctx context.Context, slugs []string) error {
+	s.log.Info("Starting specific skins parsing", "count", len(slugs))
 
 	var successCount, errorCount int
-	for _, skinID := range skinIDs {
-		skin, err := s.repo.GetSkinByID(ctx, skinID)
+	for _, slug := range slugs {
+		skin, err := s.repo.GetSkinBySlug(ctx, slug)
 		if err != nil {
-			s.log.Error("Failed to get skin", "skin_id", skinID, "error", err)
+			s.log.Error("Failed to get skin", "slug", slug, "error", err)
 			errorCount++
 			continue
 		}
@@ -283,7 +280,7 @@ func (s *Service) ParseSpecificSkins(ctx context.Context, skinIDs []uuid.UUID) e
 
 // checkRateLimit - проверка rate limit
 func (s *Service) checkRateLimit(ctx context.Context) error {
-	count, err := s.redis.IncrementRateLimit(ctx, _rateLimitKey, _rateLimitTTL)
+	count, err := s.cache.IncrementRateLimit(ctx, _rateLimitKey, _rateLimitTTL)
 	if err != nil {
 		return fmt.Errorf("increment rate limit: %w", err)
 	}
@@ -304,7 +301,7 @@ func (s *Service) GetStats(ctx context.Context) (*ParserStats, error) {
 	}
 
 	// Получить rate limit
-	rateLimit, err := s.redis.GetRateLimit(ctx, _rateLimitKey)
+	rateLimit, err := s.cache.GetRateLimit(ctx, _rateLimitKey)
 	if err != nil {
 		rateLimit = 0
 	}

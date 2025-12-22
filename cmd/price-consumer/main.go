@@ -67,17 +67,22 @@ func main() {
 	// Initialize repository
 	repo := price.NewRepository(pg, log)
 
-	// Initialize analytics
-	analytics := price.NewAnalytics(rdb, log)
+	// Initialize adapters
+	redisAdapter := price.NewRedisAdapter(rdb)
+	alertProducerAdapter := price.NewKafkaProducerAdapter(alertProducer)
+	logAdapter := price.NewLoggerAdapter(log)
 
-	// Initialize price consumer
+	// Initialize analytics with interfaces
+	analytics := price.NewAnalytics(redisAdapter, logAdapter)
+
+	// Initialize price consumer with interfaces
 	priceConsumer := price.NewConsumer(
 		consumer,
-		alertProducer,
+		alertProducerAdapter,
 		repo,
 		analytics,
-		rdb,
-		log,
+		redisAdapter,
+		logAdapter,
 	)
 
 	// Context with cancellation

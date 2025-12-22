@@ -25,14 +25,40 @@ func main() {
 	log := logger.New(cfg.Log.Level)
 	log.Info("Starting CS2 Skin Parser Service", "version", cfg.App.Version)
 
-	// Initialize PostgreSQL
-	log.Info("Connecting to PostgreSQL...")
-	pg, err := postgres.New(cfg.PG.URL, postgres.MaxPoolSize(cfg.PG.PoolMax))
-	if err != nil {
-		log.Fatal("Failed to connect to PostgreSQL", "error", err)
+	// Initialize repository with sharding support
+	var repo parser.Repository
+
+	if cfg.IsShardingEnabled() {
+		log.Info("Sharding is ENABLED", "shards_count", len(cfg.Shard.URLs))
+
+		// Create ShardManager
+		shardManager, err := postgres.NewShardManager(
+			cfg.Shard.URLs,
+			postgres.WithShardMaxPoolSize(cfg.PG.PoolMax),
+		)
+		if err != nil {
+			log.Fatal("Failed to create shard manager", "error", err)
+		}
+		defer shardManager.Close()
+
+		log.Info("ShardManager initialized successfully", "shards", shardManager.ShardsCount())
+
+		// Create sharded repository
+		repo = parser.NewShardedRepository(shardManager, log)
+	} else {
+		log.Info("Sharding is DISABLED, using single PostgreSQL instance")
+
+		// Initialize PostgreSQL (single instance)
+		pg, err := postgres.New(cfg.PG.URL, postgres.MaxPoolSize(cfg.PG.PoolMax))
+		if err != nil {
+			log.Fatal("Failed to connect to PostgreSQL", "error", err)
+		}
+		defer pg.Close()
+		log.Info("PostgreSQL connected successfully")
+
+		// Create regular repository
+		repo = parser.NewRepository(pg, log)
 	}
-	defer pg.Close()
-	log.Info("PostgreSQL connected successfully")
 
 	// Initialize Redis
 	log.Info("Connecting to Redis...")
@@ -66,20 +92,24 @@ func main() {
 	defer discoveryProducer.Close()
 	log.Info("Kafka producers initialized")
 
-	// Initialize repository
-	repo := parser.NewRepository(pg, log)
-
 	// Initialize Steam client
 	steamClient := parser.NewSteamClient(rdb, log)
+
+	// Initialize adapters
+	steamAdapter := parser.NewSteamClientAdapter(steamClient)
+	redisAdapter := parser.NewRedisAdapter(rdb)
+	priceProducerAdapter := parser.NewKafkaProducerAdapter(priceProducer)
+	discoveryProducerAdapter := parser.NewKafkaProducerAdapter(discoveryProducer)
+	logAdapter := parser.NewLoggerAdapter(log)
 
 	// Initialize parser service
 	parserService := parser.NewService(
 		repo,
-		steamClient,
-		priceProducer,
-		discoveryProducer,
-		rdb,
-		log,
+		steamAdapter,
+		priceProducerAdapter,
+		discoveryProducerAdapter,
+		redisAdapter,
+		logAdapter,
 	)
 
 	// Initialize scheduler

@@ -56,14 +56,22 @@ func main() {
 	// Initialize repository
 	repo := notification.NewRepository(pg, log)
 
-	// Initialize notification service
-	notifService := notification.NewService(repo, rdb, log)
+	// Initialize adapters
+	redisAdapter := notification.NewRedisAdapter(rdb)
+	logAdapter := notification.NewLoggerAdapter(log)
+
+	// Initialize notification service with interfaces
+	notifService := notification.NewService(
+		repo,
+		redisAdapter,
+		logAdapter,
+	)
 
 	// Initialize notification consumer
 	notifConsumer := notification.NewConsumer(
 		consumer,
 		notifService,
-		log,
+		log, // Consumer still uses concrete logger
 	)
 
 	// Context with cancellation

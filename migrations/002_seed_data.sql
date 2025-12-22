@@ -1,3 +1,6 @@
+-- Seed data for CS2 skins
+-- Slug будет автоматически сгенерирован через trigger
+
 INSERT INTO skins (market_hash_name, name, weapon, quality, rarity, image_url, created_at, updated_at) VALUES
 
 -- AK-47 Skins
@@ -70,3 +73,6 @@ INSERT INTO skins (market_hash_name, name, weapon, quality, rarity, image_url, c
 ('Sealed Graffiti | GLHF (Dust Brown)', 'GLHF', 'Graffiti', 'None', 'Base Grade Graffiti', 'https://steamcommunity.com/market/listings/730/Sealed%20Graffiti%20%7C%20GLHF%20(Dust%20Brown)', NOW(), NOW()),
 ('Sealed Graffiti | King Me (Monarch Blue)', 'King Me', 'Graffiti', 'None', 'Base Grade Graffiti', 'https://steamcommunity.com/market/listings/730/Sealed%20Graffiti%20%7C%20King%20Me%20(Monarch%20Blue)', NOW(), NOW()),
 ('Sealed Graffiti | Take Flight (War Pig Pink)', 'Take Flight', 'Graffiti', 'None', 'Base Grade Graffiti', 'https://steamcommunity.com/market/listings/730/Sealed%20Graffiti%20%7C%20Take%20Flight%20(War%20Pig%20Pink)', NOW(), NOW());
+
+-- Проверить результат
+SELECT id, slug, market_hash_name, current_price FROM skins LIMIT 10;

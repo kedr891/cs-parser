@@ -84,7 +84,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/entity.TrendingSkin"
+                                "$ref": "#/definitions/entity.Skin"
                             }
                         }
                     }
@@ -217,6 +217,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/skins/chart/{slug}": {
+            "get": {
+                "tags": [
+                    "skins"
+                ],
+                "summary": "Get price chart",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Skin slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Period: 24h, 7d, 30d, 90d, 1y, all",
+                        "name": "period",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entity.PriceChartResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/skins/popular": {
+            "get": {
+                "tags": [
+                    "skins"
+                ],
+                "summary": "Get popular skins",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/entity.Skin"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/skins/search": {
             "get": {
                 "tags": [
@@ -251,42 +309,17 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/skins/{id}": {
+        "/api/v1/skins/{slug}": {
             "get": {
                 "tags": [
                     "skins"
                 ],
-                "summary": "Get skin by ID",
+                "summary": "Get skin by slug",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Skin ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/entity.SkinDetailResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/skins/{id}/chart": {
-            "get": {
-                "tags": [
-                    "skins"
-                ],
-                "summary": "Get price chart",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Skin ID",
-                        "name": "id",
+                        "description": "Skin slug (e.g., awp_acheron_ft)",
+                        "name": "slug",
                         "in": "path",
                         "required": true
                     },
@@ -301,7 +334,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/entity.PriceChartResponse"
+                            "$ref": "#/definitions/entity.SkinDetailResponse"
                         }
                     }
                 }
@@ -388,6 +421,27 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get user stats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entity.UserStats"
+                        }
                     }
                 }
             }
@@ -862,6 +916,9 @@ const docTemplate = `{
                 "rarity": {
                     "type": "string"
                 },
+                "slug": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -965,20 +1022,6 @@ const docTemplate = `{
                 }
             }
         },
-        "entity.TrendingSkin": {
-            "type": "object",
-            "properties": {
-                "price_change_rate": {
-                    "type": "number"
-                },
-                "rank": {
-                    "type": "integer"
-                },
-                "skin": {
-                    "$ref": "#/definitions/entity.Skin"
-                }
-            }
-        },
         "entity.UserResponse": {
             "type": "object",
             "properties": {
@@ -1018,6 +1061,26 @@ const docTemplate = `{
                 "RoleUser",
                 "RoleAdmin"
             ]
+        },
+        "entity.UserStats": {
+            "type": "object",
+            "properties": {
+                "active_alerts": {
+                    "type": "integer"
+                },
+                "member_since": {
+                    "type": "string"
+                },
+                "total_notifications": {
+                    "type": "integer"
+                },
+                "total_watchlist": {
+                    "type": "integer"
+                },
+                "unread_notifications": {
+                    "type": "integer"
+                }
+            }
         },
         "entity.Watchlist": {
             "type": "object",

@@ -1,32 +1,25 @@
 package handler
 
 import (
-	"context"
-	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/kedr891/cs-parser/internal/entity"
-	"github.com/kedr891/cs-parser/pkg/logger"
-	"github.com/kedr891/cs-parser/pkg/postgres"
-	"github.com/kedr891/cs-parser/pkg/redis"
+	"github.com/kedr891/cs-parser/internal/api/service"
+	"github.com/kedr891/cs-parser/internal/domain"
 )
 
 // AnalyticsHandler - обработчик для аналитики
 type AnalyticsHandler struct {
-	pg    *postgres.Postgres
-	redis *redis.Redis
-	log   *logger.Logger
+	service *service.AnalyticsService
+	log     domain.Logger
 }
 
 // NewAnalyticsHandler - создать обработчик аналитики
-func NewAnalyticsHandler(pg *postgres.Postgres, redis *redis.Redis, log *logger.Logger) *AnalyticsHandler {
+func NewAnalyticsHandler(service *service.AnalyticsService, log domain.Logger) *AnalyticsHandler {
 	return &AnalyticsHandler{
-		pg:    pg,
-		redis: redis,
-		log:   log,
+		service: service,
+		log:     log,
 	}
 }
 
@@ -35,7 +28,7 @@ func NewAnalyticsHandler(pg *postgres.Postgres, redis *redis.Redis, log *logger.
 // @Tags analytics
 // @Param period query string false "Period: 24h or 7d"
 // @Param limit query int false "Limit"
-// @Success 200 {array} entity.TrendingSkin
+// @Success 200 {array} entity.Skin
 // @Router /api/v1/analytics/trending [get]
 func (h *AnalyticsHandler) GetTrending(c *gin.Context) {
 	period := c.DefaultQuery("period", "24h")
@@ -46,48 +39,14 @@ func (h *AnalyticsHandler) GetTrending(c *gin.Context) {
 		}
 	}
 
-	key := "analytics:trending:24h"
-	if period == "7d" {
-		key = "analytics:trending:7d"
-	}
-
-	// Получить skin IDs из Redis
-	skinIDs, err := h.redis.ZRevRange(c.Request.Context(), key, 0, int64(limit-1))
+	skins, err := h.service.GetTrendingSkins(c.Request.Context(), period, limit)
 	if err != nil {
-		h.log.Error("Failed to get trending from Redis", "error", err)
+		h.log.Error("Failed to get trending skins", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get trending"})
 		return
 	}
 
-	if len(skinIDs) == 0 {
-		c.JSON(http.StatusOK, []entity.TrendingSkin{})
-		return
-	}
-
-	// Получить детали скинов из БД
-	trending := make([]entity.TrendingSkin, 0, len(skinIDs))
-	for i, idStr := range skinIDs {
-		skinID, err := uuid.Parse(idStr)
-		if err != nil {
-			continue
-		}
-
-		skin, err := h.getSkinByID(c.Request.Context(), skinID)
-		if err != nil {
-			continue
-		}
-
-		// Получить score (price change) из Redis
-		score, _ := h.redis.Client.ZScore(c.Request.Context(), key, idStr).Result()
-
-		trending = append(trending, entity.TrendingSkin{
-			Skin:            *skin,
-			PriceChangeRate: score,
-			Rank:            i + 1,
-		})
-	}
-
-	c.JSON(http.StatusOK, trending)
+	c.JSON(http.StatusOK, skins)
 }
 
 // GetMarketOverview - получить обзор рынка
@@ -96,27 +55,14 @@ func (h *AnalyticsHandler) GetTrending(c *gin.Context) {
 // @Success 200 {object} entity.MarketOverview
 // @Router /api/v1/analytics/market-overview [get]
 func (h *AnalyticsHandler) GetMarketOverview(c *gin.Context) {
-	// Проверить кэш
-	cacheKey := "analytics:market:overview"
-	if cached, err := h.redis.GetCache(c.Request.Context(), cacheKey); err == nil {
-		var overview entity.MarketOverview
-		if err := json.Unmarshal([]byte(cached), &overview); err == nil {
-			c.JSON(http.StatusOK, overview)
-			return
-		}
+	overview, err := h.service.GetMarketOverview(c.Request.Context())
+	if err != nil {
+		h.log.Error("Failed to get market overview", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get market overview"})
+		return
 	}
 
-	// Если кэш пуст, вернуть пустой объект или рассчитать заново
-	// В реальном проекте здесь было бы обновление из БД
-	c.JSON(http.StatusOK, entity.MarketOverview{
-		TotalSkins:      0,
-		AvgPrice:        0,
-		TotalVolume24h:  0,
-		TopGainers:      []entity.Skin{},
-		TopLosers:       []entity.Skin{},
-		MostPopular:     []entity.Skin{},
-		RecentlyUpdated: []entity.Skin{},
-	})
+	c.JSON(http.StatusOK, overview)
 }
 
 // GetPopularSearches - получить популярные поисковые запросы
@@ -133,7 +79,7 @@ func (h *AnalyticsHandler) GetPopularSearches(c *gin.Context) {
 		}
 	}
 
-	searches, err := h.redis.ZRevRange(c.Request.Context(), "analytics:popular:searches", 0, int64(limit-1))
+	searches, err := h.service.GetPopularSearches(c.Request.Context(), limit)
 	if err != nil {
 		h.log.Error("Failed to get popular searches", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get popular searches"})
@@ -141,30 +87,4 @@ func (h *AnalyticsHandler) GetPopularSearches(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, searches)
-}
-
-// Helper methods
-
-func (h *AnalyticsHandler) getSkinByID(ctx context.Context, id uuid.UUID) (*entity.Skin, error) {
-	query := `
-		SELECT 
-			id, market_hash_name, name, weapon, quality, rarity,
-			current_price, currency, image_url, volume_24h,
-			price_change_24h, price_change_7d,
-			lowest_price, highest_price,
-			last_updated, created_at, updated_at
-		FROM skins
-		WHERE id = $1
-	`
-
-	var skin entity.Skin
-	err := h.pg.Pool.QueryRow(ctx, query, id).Scan(
-		&skin.ID, &skin.MarketHashName, &skin.Name, &skin.Weapon, &skin.Quality, &skin.Rarity,
-		&skin.CurrentPrice, &skin.Currency, &skin.ImageURL, &skin.Volume24h,
-		&skin.PriceChange24h, &skin.PriceChange7d,
-		&skin.LowestPrice, &skin.HighestPrice,
-		&skin.LastUpdated, &skin.CreatedAt, &skin.UpdatedAt,
-	)
-
-	return &skin, err
 }

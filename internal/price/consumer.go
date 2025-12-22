@@ -6,38 +6,37 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kedr891/cs-parser/internal/domain"
 	"github.com/kedr891/cs-parser/internal/entity"
 	"github.com/kedr891/cs-parser/pkg/kafka"
-	"github.com/kedr891/cs-parser/pkg/logger"
-	"github.com/kedr891/cs-parser/pkg/redis"
 	kafkago "github.com/segmentio/kafka-go"
 )
 
 // Consumer - консьюмер событий изменения цен
 type Consumer struct {
 	consumer      *kafka.Consumer
-	alertProducer *kafka.Producer
+	alertProducer domain.MessageProducer
 	repo          Repository
 	analytics     *Analytics
-	redis         *redis.Redis
-	log           *logger.Logger
+	cache         domain.CacheStorage
+	log           domain.Logger
 }
 
 // NewConsumer - создать консьюмер
 func NewConsumer(
 	consumer *kafka.Consumer,
-	alertProducer *kafka.Producer,
+	alertProducer domain.MessageProducer,
 	repo Repository,
 	analytics *Analytics,
-	redis *redis.Redis,
-	log *logger.Logger,
+	cache domain.CacheStorage,
+	log domain.Logger,
 ) *Consumer {
 	return &Consumer{
 		consumer:      consumer,
 		alertProducer: alertProducer,
 		repo:          repo,
 		analytics:     analytics,
-		redis:         redis,
+		cache:         cache,
 		log:           log,
 	}
 }
@@ -146,7 +145,7 @@ func (c *Consumer) updatePriceCache(ctx context.Context, event *entity.PriceUpda
 	}
 
 	// TTL 5 минут (до следующего парсинга)
-	if err := c.redis.SetCache(ctx, cacheKey, string(data), 5*time.Minute); err != nil {
+	if err := c.cache.Set(ctx, cacheKey, string(data), 5*time.Minute); err != nil {
 		return fmt.Errorf("set cache: %w", err)
 	}
 

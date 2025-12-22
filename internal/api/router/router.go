@@ -22,8 +22,9 @@ func SetupRoutes(
 		{
 			skins.GET("", skinHandler.GetSkins)
 			skins.GET("/search", skinHandler.SearchSkins)
-			skins.GET("/:id", skinHandler.GetSkinByID)
-			skins.GET("/:id/chart", skinHandler.GetPriceChart)
+			skins.GET("/popular", skinHandler.GetPopularSkins)
+			skins.GET("/:slug", skinHandler.GetSkinBySlug)
+			skins.GET("/chart/:slug", skinHandler.GetPriceChart)
 		}
 
 		// Public endpoints - Analytics
