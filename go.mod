@@ -20,7 +20,7 @@ require (
 	github.com/ansrivas/fiberprometheus/v2 v2.14.0
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/gin-gonic/gin v1.11.0
-	github.com/go-playground/validator/v10 v10.29.0
+	github.com/go-playground/validator/v10 v10.30.0
 	github.com/goccy/go-json v0.10.5
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/gofiber/swagger v1.1.1
@@ -164,7 +164,7 @@ require (
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/ghostiam/protogetter v0.3.17 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-critic/go-critic v0.14.2 // indirect
