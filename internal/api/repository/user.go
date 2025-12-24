@@ -10,9 +10,7 @@ import (
 	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
-// UserRepository - интерфейс репозитория пользователей
 type UserRepository interface {
-	// User CRUD
 	CreateUser(ctx context.Context, user *entity.User) error
 	GetUserByID(ctx context.Context, id uuid.UUID) (*entity.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*entity.User, error)
@@ -20,40 +18,33 @@ type UserRepository interface {
 	UpdateLastLogin(ctx context.Context, userID uuid.UUID) error
 	UpdateUser(ctx context.Context, user *entity.User) error
 
-	// User Settings
 	CreateUserSettings(ctx context.Context, settings *entity.UserSettings) error
 	GetUserSettings(ctx context.Context, userID uuid.UUID) (*entity.UserSettings, error)
 	UpdateUserSettings(ctx context.Context, settings *entity.UserSettings) error
 
-	// Watchlist
 	GetWatchlistWithSkins(ctx context.Context, userID uuid.UUID) ([]entity.WatchlistWithSkin, error)
 	WatchlistExists(ctx context.Context, userID, skinID uuid.UUID) (bool, error)
 	CreateWatchlist(ctx context.Context, wl *entity.Watchlist) error
 	DeleteWatchlist(ctx context.Context, userID, skinID uuid.UUID) error
 	GetActiveWatchlists(ctx context.Context) ([]entity.Watchlist, error)
 
-	// Notifications
 	GetNotifications(ctx context.Context, userID uuid.UUID, unreadOnly bool, limit int) ([]entity.Notification, error)
 	GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 	MarkNotificationsRead(ctx context.Context, userID uuid.UUID, notificationIDs []uuid.UUID) error
 
-	// Stats
 	GetUserStats(ctx context.Context, userID uuid.UUID) (*entity.UserStats, error)
 }
 
-// userRepository - реализация репозитория
 type userRepository struct {
 	pg *postgres.Postgres
 }
 
-// NewUserRepository - создать репозиторий пользователей
 func NewUserRepository(pg *postgres.Postgres) UserRepository {
 	return &userRepository{
 		pg: pg,
 	}
 }
 
-// CreateUser - создать пользователя
 func (r *userRepository) CreateUser(ctx context.Context, user *entity.User) error {
 	query := `
 		INSERT INTO users (id, email, username, password_hash, role, is_active, is_verified, created_at, updated_at)
@@ -67,7 +58,6 @@ func (r *userRepository) CreateUser(ctx context.Context, user *entity.User) erro
 	return err
 }
 
-// GetUserByID - получить пользователя по ID
 func (r *userRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
 	query := `
 		SELECT id, email, username, password_hash, role, is_active, is_verified, last_login_at, created_at, updated_at
@@ -85,7 +75,6 @@ func (r *userRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*entity
 	return &user, err
 }
 
-// GetUserByEmail - получить пользователя по email
 func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
 	query := `
 		SELECT id, email, username, password_hash, role, is_active, is_verified, last_login_at, created_at, updated_at
@@ -103,20 +92,17 @@ func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*ent
 	return &user, err
 }
 
-// UserExistsByEmail - проверить существование пользователя по email
 func (r *userRepository) UserExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var exists bool
 	err := r.pg.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`, email).Scan(&exists)
 	return exists, err
 }
 
-// UpdateLastLogin - обновить время последнего входа
 func (r *userRepository) UpdateLastLogin(ctx context.Context, userID uuid.UUID) error {
 	_, err := r.pg.Pool.Exec(ctx, `UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1`, userID)
 	return err
 }
 
-// UpdateUser - обновить данные пользователя
 func (r *userRepository) UpdateUser(ctx context.Context, user *entity.User) error {
 	query := `
 		UPDATE users 
@@ -127,7 +113,6 @@ func (r *userRepository) UpdateUser(ctx context.Context, user *entity.User) erro
 	return err
 }
 
-// CreateUserSettings - создать настройки пользователя
 func (r *userRepository) CreateUserSettings(ctx context.Context, settings *entity.UserSettings) error {
 	query := `
 		INSERT INTO user_settings (
@@ -143,7 +128,6 @@ func (r *userRepository) CreateUserSettings(ctx context.Context, settings *entit
 	return err
 }
 
-// GetUserSettings - получить настройки пользователя
 func (r *userRepository) GetUserSettings(ctx context.Context, userID uuid.UUID) (*entity.UserSettings, error) {
 	query := `
 		SELECT user_id, email_notifications, push_notifications,
@@ -162,7 +146,6 @@ func (r *userRepository) GetUserSettings(ctx context.Context, userID uuid.UUID) 
 	return &settings, err
 }
 
-// UpdateUserSettings - обновить настройки пользователя
 func (r *userRepository) UpdateUserSettings(ctx context.Context, settings *entity.UserSettings) error {
 	query := `
 		UPDATE user_settings 
@@ -179,7 +162,6 @@ func (r *userRepository) UpdateUserSettings(ctx context.Context, settings *entit
 	return err
 }
 
-// GetWatchlistWithSkins - получить watchlist со скинами
 func (r *userRepository) GetWatchlistWithSkins(ctx context.Context, userID uuid.UUID) ([]entity.WatchlistWithSkin, error) {
 	query := `
 		SELECT 
@@ -219,7 +201,6 @@ func (r *userRepository) GetWatchlistWithSkins(ctx context.Context, userID uuid.
 	return result, nil
 }
 
-// WatchlistExists - проверить существование записи в watchlist
 func (r *userRepository) WatchlistExists(ctx context.Context, userID, skinID uuid.UUID) (bool, error) {
 	var exists bool
 	err := r.pg.Pool.QueryRow(ctx,
@@ -229,7 +210,6 @@ func (r *userRepository) WatchlistExists(ctx context.Context, userID, skinID uui
 	return exists, err
 }
 
-// CreateWatchlist - создать запись в watchlist
 func (r *userRepository) CreateWatchlist(ctx context.Context, wl *entity.Watchlist) error {
 	query := `
 		INSERT INTO watchlist (id, user_id, skin_id, target_price, notify_on_drop, notify_on_price, is_active, added_at, updated_at)
@@ -243,7 +223,6 @@ func (r *userRepository) CreateWatchlist(ctx context.Context, wl *entity.Watchli
 	return err
 }
 
-// DeleteWatchlist - удалить запись из watchlist (soft delete)
 func (r *userRepository) DeleteWatchlist(ctx context.Context, userID, skinID uuid.UUID) error {
 	_, err := r.pg.Pool.Exec(ctx,
 		`UPDATE watchlist SET is_active = false, updated_at = NOW() WHERE user_id = $1 AND skin_id = $2`,
@@ -252,7 +231,6 @@ func (r *userRepository) DeleteWatchlist(ctx context.Context, userID, skinID uui
 	return err
 }
 
-// GetActiveWatchlists - получить все активные watchlist (для price consumer)
 func (r *userRepository) GetActiveWatchlists(ctx context.Context) ([]entity.Watchlist, error) {
 	query := `
 		SELECT id, user_id, skin_id, target_price, notify_on_drop, notify_on_price, is_active, added_at, updated_at
@@ -283,7 +261,6 @@ func (r *userRepository) GetActiveWatchlists(ctx context.Context) ([]entity.Watc
 	return watchlists, nil
 }
 
-// GetNotifications - получить уведомления пользователя
 func (r *userRepository) GetNotifications(ctx context.Context, userID uuid.UUID, unreadOnly bool, limit int) ([]entity.Notification, error) {
 	query := `
 		SELECT id, user_id, type, title, message, is_read, priority, created_at, read_at
@@ -316,14 +293,12 @@ func (r *userRepository) GetNotifications(ctx context.Context, userID uuid.UUID,
 	return notifications, nil
 }
 
-// GetUnreadCount - получить количество непрочитанных уведомлений
 func (r *userRepository) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	err := r.pg.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false`, userID).Scan(&count)
 	return count, err
 }
 
-// MarkNotificationsRead - пометить уведомления как прочитанные
 func (r *userRepository) MarkNotificationsRead(ctx context.Context, userID uuid.UUID, notificationIDs []uuid.UUID) error {
 	query := `
 		UPDATE notifications
@@ -334,7 +309,6 @@ func (r *userRepository) MarkNotificationsRead(ctx context.Context, userID uuid.
 	return err
 }
 
-// GetUserStats - получить статистику пользователя
 func (r *userRepository) GetUserStats(ctx context.Context, userID uuid.UUID) (*entity.UserStats, error) {
 	query := `
 		SELECT 

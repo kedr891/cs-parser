@@ -8,17 +8,15 @@ import (
 	"github.com/kedr891/cs-parser/pkg/logger"
 )
 
-// Scheduler - планировщик задач парсинга
 type Scheduler struct {
 	service         *Service
 	intervalMinutes int
 	log             *logger.Logger
 }
 
-// NewScheduler - создать планировщик
 func NewScheduler(service *Service, intervalMinutes int, log *logger.Logger) *Scheduler {
 	if intervalMinutes <= 0 {
-		intervalMinutes = 5 // по умолчанию 5 минут
+		intervalMinutes = 5
 	}
 
 	return &Scheduler{
@@ -28,16 +26,13 @@ func NewScheduler(service *Service, intervalMinutes int, log *logger.Logger) *Sc
 	}
 }
 
-// Start - запустить планировщик
 func (s *Scheduler) Start(ctx context.Context) error {
 	s.log.Info("Scheduler started", "interval_minutes", s.intervalMinutes)
 
-	// Первый запуск сразу
 	if err := s.runParsingCycle(ctx); err != nil {
 		s.log.Error("Initial parsing cycle failed", "error", err)
 	}
 
-	// Создать ticker для периодического запуска
 	ticker := time.NewTicker(time.Duration(s.intervalMinutes) * time.Minute)
 	defer ticker.Stop()
 
@@ -50,18 +45,15 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		case <-ticker.C:
 			if err := s.runParsingCycle(ctx); err != nil {
 				s.log.Error("Parsing cycle failed", "error", err)
-				// Продолжаем работу даже при ошибках
 			}
 		}
 	}
 }
 
-// runParsingCycle - выполнить один цикл парсинга
 func (s *Scheduler) runParsingCycle(ctx context.Context) error {
 	s.log.Info("Starting parsing cycle")
 	startTime := time.Now()
 
-	// Парсинг всех скинов
 	if err := s.service.ParseAllSkins(ctx); err != nil {
 		return fmt.Errorf("parse all skins: %w", err)
 	}
@@ -75,12 +67,10 @@ func (s *Scheduler) runParsingCycle(ctx context.Context) error {
 	return nil
 }
 
-// RunOnce - запустить один раз
 func (s *Scheduler) RunOnce(ctx context.Context) error {
 	return s.runParsingCycle(ctx)
 }
 
-// RunDiscovery - запустить поиск новых скинов
 func (s *Scheduler) RunDiscovery(ctx context.Context, query string) error {
 	s.log.Info("Starting discovery", "query", query)
 	startTime := time.Now()
@@ -95,23 +85,19 @@ func (s *Scheduler) RunDiscovery(ctx context.Context, query string) error {
 	return nil
 }
 
-// ScheduledDiscovery - запустить периодический поиск новых скинов
 func (s *Scheduler) ScheduledDiscovery(ctx context.Context, queries []string, intervalHours int) error {
 	s.log.Info("Starting scheduled discovery",
 		"queries", len(queries),
 		"interval_hours", intervalHours,
 	)
 
-	// Первый запуск
 	for _, query := range queries {
 		if err := s.service.DiscoverNewSkins(ctx, query); err != nil {
 			s.log.Error("Discovery failed", "query", query, "error", err)
 		}
-		// Задержка между запросами для избежания rate limit
 		time.Sleep(5 * time.Second)
 	}
 
-	// Периодический запуск
 	ticker := time.NewTicker(time.Duration(intervalHours) * time.Hour)
 	defer ticker.Stop()
 
@@ -132,7 +118,6 @@ func (s *Scheduler) ScheduledDiscovery(ctx context.Context, queries []string, in
 	}
 }
 
-// GetStats - получить статистику работы
 func (s *Scheduler) GetStats(ctx context.Context) (*SchedulerStats, error) {
 	parserStats, err := s.service.GetStats(ctx)
 	if err != nil {
@@ -148,7 +133,6 @@ func (s *Scheduler) GetStats(ctx context.Context) (*SchedulerStats, error) {
 	}, nil
 }
 
-// SchedulerStats - статистика планировщика
 type SchedulerStats struct {
 	IsRunning       bool      `json:"is_running"`
 	IntervalMinutes int       `json:"interval_minutes"`
@@ -157,21 +141,17 @@ type SchedulerStats struct {
 	RequestsLastMin int       `json:"requests_last_min"`
 }
 
-// StartWithDiscovery - запустить планировщик с периодическим поиском новых скинов
 func (s *Scheduler) StartWithDiscovery(ctx context.Context, discoveryQueries []string, discoveryIntervalHours int) error {
-	// Запустить основной планировщик в отдельной горутине
 	go func() {
 		if err := s.Start(ctx); err != nil {
 			s.log.Error("Parser scheduler error", "error", err)
 		}
 	}()
 
-	// Запустить планировщик discovery
 	if len(discoveryQueries) > 0 && discoveryIntervalHours > 0 {
 		return s.ScheduledDiscovery(ctx, discoveryQueries, discoveryIntervalHours)
 	}
 
-	// Если discovery не нужен, просто ждём завершения контекста
 	<-ctx.Done()
 	return ctx.Err()
 }

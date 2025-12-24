@@ -10,13 +10,11 @@ import (
 	"github.com/kedr891/cs-parser/internal/entity"
 )
 
-// SkinHandler - обработчик для скинов
 type SkinHandler struct {
 	service *service.SkinService
 	log     domain.Logger
 }
 
-// NewSkinHandler - создать обработчик скинов
 func NewSkinHandler(service *service.SkinService, log domain.Logger) *SkinHandler {
 	return &SkinHandler{
 		service: service,
@@ -39,7 +37,6 @@ func NewSkinHandler(service *service.SkinService, log domain.Logger) *SkinHandle
 // @Success 200 {object} entity.SkinListResponse
 // @Router /api/v1/skins [get]
 func (h *SkinHandler) GetSkins(c *gin.Context) {
-	// Парсинг параметров фильтра
 	filter := entity.NewSkinFilter()
 	filter.Weapon = c.Query("weapon")
 	filter.Quality = c.Query("quality")
@@ -75,7 +72,6 @@ func (h *SkinHandler) GetSkins(c *gin.Context) {
 	filter.Limit = pageSize
 	filter.Offset = (page - 1) * pageSize
 
-	// Вызов сервиса
 	response, err := h.service.GetSkins(c.Request.Context(), filter)
 	if err != nil {
 		h.log.Error("Failed to get skins", "error", err)
@@ -102,13 +98,11 @@ func (h *SkinHandler) GetSkinBySlug(c *gin.Context) {
 		return
 	}
 
-	// Получить период из query параметров
 	period := entity.Period7d
 	if p := c.Query("period"); p != "" {
 		period = entity.PriceStatsPeriod(p)
 	}
 
-	// Вызов сервиса
 	response, err := h.service.GetSkinBySlug(c.Request.Context(), slug, period)
 	if err != nil {
 		h.log.Error("Failed to get skin by slug", "error", err, "slug", slug)
@@ -194,7 +188,6 @@ func (h *SkinHandler) GetPopularSkins(c *gin.Context) {
 		}
 	}
 
-	// Вызов сервиса
 	skins, err := h.service.GetPopularSkins(c.Request.Context(), limit)
 	if err != nil {
 		h.log.Error("Failed to get popular skins", "error", err)

@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// PriceHistory - история изменения цены
 type PriceHistory struct {
 	ID         int64     `json:"id" db:"id"`
 	SkinID     uuid.UUID `json:"skin_id" db:"skin_id"`
@@ -17,7 +16,6 @@ type PriceHistory struct {
 	RecordedAt time.Time `json:"recorded_at" db:"recorded_at"`
 }
 
-// PriceSource - источник цены
 type PriceSource string
 
 const (
@@ -28,7 +26,6 @@ const (
 	SourceManual      PriceSource = "manual"
 )
 
-// NewPriceHistory - создать запись истории цены
 func NewPriceHistory(skinID uuid.UUID, price float64, source string, volume int) *PriceHistory {
 	return &PriceHistory{
 		SkinID:     skinID,
@@ -40,7 +37,6 @@ func NewPriceHistory(skinID uuid.UUID, price float64, source string, volume int)
 	}
 }
 
-// PriceUpdateEvent - событие обновления цены для Kafka
 type PriceUpdateEvent struct {
 	SkinID         uuid.UUID `json:"skin_id"`
 	Slug           string    `json:"slug"`
@@ -54,7 +50,6 @@ type PriceUpdateEvent struct {
 	Timestamp      time.Time `json:"timestamp"`
 }
 
-// NewPriceUpdateEvent - создать событие обновления цены
 func NewPriceUpdateEvent(skinID uuid.UUID, slug, marketHashName, source string, oldPrice, newPrice float64, volume int) *PriceUpdateEvent {
 	priceChange := 0.0
 	if oldPrice > 0 {
@@ -75,22 +70,18 @@ func NewPriceUpdateEvent(skinID uuid.UUID, slug, marketHashName, source string, 
 	}
 }
 
-// IsSignificantChange - значительное ли изменение цены
 func (e *PriceUpdateEvent) IsSignificantChange() bool {
 	return e.PriceChange >= 5.0 || e.PriceChange <= -5.0
 }
 
-// IsPriceDrop - снижение цены
 func (e *PriceUpdateEvent) IsPriceDrop() bool {
 	return e.NewPrice < e.OldPrice
 }
 
-// IsPriceIncrease - рост цены
 func (e *PriceUpdateEvent) IsPriceIncrease() bool {
 	return e.NewPrice > e.OldPrice
 }
 
-// SkinDiscoveredEvent - событие обнаружения нового скина для Kafka
 type SkinDiscoveredEvent struct {
 	MarketHashName string    `json:"market_hash_name"`
 	Name           string    `json:"name"`
@@ -104,7 +95,6 @@ type SkinDiscoveredEvent struct {
 	Timestamp      time.Time `json:"timestamp"`
 }
 
-// NewSkinDiscoveredEvent - создать событие обнаружения скина
 func NewSkinDiscoveredEvent(marketHashName, name, weapon, quality, rarity string, price float64, source, imageURL string) *SkinDiscoveredEvent {
 	return &SkinDiscoveredEvent{
 		MarketHashName: marketHashName,
@@ -120,14 +110,12 @@ func NewSkinDiscoveredEvent(marketHashName, name, weapon, quality, rarity string
 	}
 }
 
-// PriceChartData - данные для графика цен
 type PriceChartData struct {
 	Timestamp time.Time `json:"timestamp"`
 	Price     float64   `json:"price"`
 	Volume    int       `json:"volume"`
 }
 
-// PriceChartResponse - ответ с данными графика
 type PriceChartResponse struct {
 	SkinID      uuid.UUID        `json:"skin_id"`
 	Period      string           `json:"period"` // 24h, 7d, 30d, 90d, 1y, all
@@ -138,7 +126,6 @@ type PriceChartResponse struct {
 	TotalVolume int              `json:"total_volume"`
 }
 
-// PriceStatsPeriod - период для статистики
 type PriceStatsPeriod string
 
 const (
@@ -150,7 +137,6 @@ const (
 	PeriodAll PriceStatsPeriod = "all"
 )
 
-// GetPeriodDuration - получить duration для периода
 func (p PriceStatsPeriod) GetDuration() time.Duration {
 	switch p {
 	case Period24h:
@@ -168,18 +154,16 @@ func (p PriceStatsPeriod) GetDuration() time.Duration {
 	}
 }
 
-// PriceComparison - сравнение цен между источниками
 type PriceComparison struct {
 	SkinID         uuid.UUID          `json:"skin_id"`
 	MarketHashName string             `json:"market_hash_name"`
-	Prices         map[string]float64 `json:"prices"` // source -> price
+	Prices         map[string]float64 `json:"prices"`
 	BestPrice      float64            `json:"best_price"`
 	BestSource     string             `json:"best_source"`
-	PriceDiff      float64            `json:"price_diff"` // разница между мин и макс
+	PriceDiff      float64            `json:"price_diff"`
 	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
-// MarketOverview - общий обзор рынка
 type MarketOverview struct {
 	TotalSkins      int       `json:"total_skins"`
 	AvgPrice        float64   `json:"avg_price"`
@@ -191,14 +175,12 @@ type MarketOverview struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-// PriceAlert - условие для алерта по цене
 type PriceAlert struct {
 	TargetPrice  float64 `json:"target_price"`
 	CurrentPrice float64 `json:"current_price"`
-	Condition    string  `json:"condition"` // below, above
+	Condition    string  `json:"condition"`
 }
 
-// ShouldTrigger - должен ли сработать алерт
 func (a *PriceAlert) ShouldTrigger() bool {
 	switch a.Condition {
 	case "below":

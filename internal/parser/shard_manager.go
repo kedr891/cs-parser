@@ -13,13 +13,11 @@ import (
 	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
-// shardedRepository - репозиторий с поддержкой шардирования
 type shardedRepository struct {
 	shardManager *postgres.ShardManager
 	log          *logger.Logger
 }
 
-// NewShardedRepository - создать репозиторий с шардированием
 func NewShardedRepository(shardManager *postgres.ShardManager, log *logger.Logger) Repository {
 	return &shardedRepository{
 		shardManager: shardManager,
@@ -27,7 +25,6 @@ func NewShardedRepository(shardManager *postgres.ShardManager, log *logger.Logge
 	}
 }
 
-// GetAllSkins - получить все скины из всех шардов
 func (r *shardedRepository) GetAllSkins(ctx context.Context) ([]entity.Skin, error) {
 	query := `
 		SELECT 
@@ -47,7 +44,6 @@ func (r *shardedRepository) GetAllSkins(ctx context.Context) ([]entity.Skin, err
 		errChan  = make(chan error, r.shardManager.ShardsCount())
 	)
 
-	// Запросить все шарды параллельно
 	for _, shard := range r.shardManager.GetAllShards() {
 		wg.Add(1)
 		go func(pool *pgxpool.Pool) {
@@ -86,7 +82,6 @@ func (r *shardedRepository) GetAllSkins(ctx context.Context) ([]entity.Skin, err
 	wg.Wait()
 	close(errChan)
 
-	// Проверить ошибки
 	if err := <-errChan; err != nil {
 		return nil, err
 	}
@@ -94,7 +89,6 @@ func (r *shardedRepository) GetAllSkins(ctx context.Context) ([]entity.Skin, err
 	return allSkins, nil
 }
 
-// GetSkinBySlug - получить скин по slug (нужно искать во всех шардах)
 func (r *shardedRepository) GetSkinBySlug(ctx context.Context, slug string) (*entity.Skin, error) {
 	query := `
 		SELECT 
@@ -107,7 +101,6 @@ func (r *shardedRepository) GetSkinBySlug(ctx context.Context, slug string) (*en
 		WHERE slug = $1
 	`
 
-	// Ищем во всех шардах параллельно
 	var (
 		result  *entity.Skin
 		mu      sync.Mutex
@@ -155,7 +148,6 @@ func (r *shardedRepository) GetSkinBySlug(ctx context.Context, slug string) (*en
 	return result, nil
 }
 
-// GetSkinByMarketHashName - получить скин по market_hash_name
 func (r *shardedRepository) GetSkinByMarketHashName(ctx context.Context, marketHashName string) (*entity.Skin, error) {
 	query := `
 		SELECT 
@@ -168,7 +160,6 @@ func (r *shardedRepository) GetSkinByMarketHashName(ctx context.Context, marketH
 		WHERE market_hash_name = $1
 	`
 
-	// Ищем во всех шардах параллельно
 	var (
 		result  *entity.Skin
 		mu      sync.Mutex
@@ -216,11 +207,9 @@ func (r *shardedRepository) GetSkinByMarketHashName(ctx context.Context, marketH
 	return result, nil
 }
 
-// SkinExists - проверить существование скина
 func (r *shardedRepository) SkinExists(ctx context.Context, marketHashName string) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM skins WHERE market_hash_name = $1)`
 
-	// Проверяем все шарды
 	for _, shard := range r.shardManager.GetAllShards() {
 		var exists bool
 		err := shard.QueryRow(ctx, query, marketHashName).Scan(&exists)
@@ -235,9 +224,7 @@ func (r *shardedRepository) SkinExists(ctx context.Context, marketHashName strin
 	return false, nil
 }
 
-// CreateSkin - создать скин с автоматическим роутингом по weapon
 func (r *shardedRepository) CreateSkin(ctx context.Context, skin *entity.Skin) error {
-	// Используем weapon для определения шарда
 	shard := r.shardManager.GetShardByWeapon(skin.Weapon)
 
 	query := `
@@ -263,11 +250,8 @@ func (r *shardedRepository) CreateSkin(ctx context.Context, skin *entity.Skin) e
 	return err
 }
 
-// UpdateSkinPrice - обновить цену скина
 func (r *shardedRepository) UpdateSkinPrice(ctx context.Context, skinID uuid.UUID, price float64, volume int) error {
-	// Используем TransactionByID из ShardManager для поиска нужного шарда
 	return r.shardManager.TransactionByID(ctx, skinID, func(tx pgx.Tx) error {
-		// Логика обновления
 		var oldPrice float64
 		err := tx.QueryRow(ctx, `SELECT current_price FROM skins WHERE id = $1`, skinID).Scan(&oldPrice)
 		if err != nil {
@@ -313,9 +297,7 @@ func (r *shardedRepository) UpdateSkinPrice(ctx context.Context, skinID uuid.UUI
 	})
 }
 
-// SavePriceHistory - сохранить историю цены
 func (r *shardedRepository) SavePriceHistory(ctx context.Context, history *entity.PriceHistory) error {
-	// Ищем скин во всех шардах и сохраняем историю в тот же шард
 	for _, shard := range r.shardManager.GetAllShards() {
 		var exists bool
 		err := shard.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM skins WHERE id = $1)", history.SkinID).Scan(&exists)
@@ -340,7 +322,6 @@ func (r *shardedRepository) SavePriceHistory(ctx context.Context, history *entit
 	return fmt.Errorf("skin not found in any shard")
 }
 
-// GetSkinsCount - получить общее количество скинов из всех шардов
 func (r *shardedRepository) GetSkinsCount(ctx context.Context) (int, error) {
 	var (
 		totalCount int

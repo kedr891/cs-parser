@@ -9,13 +9,11 @@ import (
 	"github.com/kedr891/cs-parser/internal/domain"
 )
 
-// AnalyticsHandler - обработчик для аналитики
 type AnalyticsHandler struct {
 	service *service.AnalyticsService
 	log     domain.Logger
 }
 
-// NewAnalyticsHandler - создать обработчик аналитики
 func NewAnalyticsHandler(service *service.AnalyticsService, log domain.Logger) *AnalyticsHandler {
 	return &AnalyticsHandler{
 		service: service,

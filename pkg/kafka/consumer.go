@@ -51,8 +51,6 @@ func NewConsumer(brokers []string, topic, groupID string, opts ...ConsumerOption
 		reader: reader,
 	}
 }
-
-// ReadMessage - прочитать одно сообщение (блокирующая операция)
 func (c *Consumer) ReadMessage(ctx context.Context) (kafka.Message, error) {
 	msg, err := c.reader.ReadMessage(ctx)
 	if err != nil {
@@ -61,7 +59,6 @@ func (c *Consumer) ReadMessage(ctx context.Context) (kafka.Message, error) {
 	return msg, nil
 }
 
-// FetchMessage - получить сообщение без автоматического коммита
 func (c *Consumer) FetchMessage(ctx context.Context) (kafka.Message, error) {
 	msg, err := c.reader.FetchMessage(ctx)
 	if err != nil {
@@ -70,7 +67,6 @@ func (c *Consumer) FetchMessage(ctx context.Context) (kafka.Message, error) {
 	return msg, nil
 }
 
-// CommitMessages - закоммитить сообщения вручную
 func (c *Consumer) CommitMessages(ctx context.Context, msgs ...kafka.Message) error {
 	if err := c.reader.CommitMessages(ctx, msgs...); err != nil {
 		return fmt.Errorf("kafka consumer - commit messages: %w", err)
@@ -86,12 +82,10 @@ func (c *Consumer) Close() error {
 	return nil
 }
 
-// Stats - статистика консьюмера
 func (c *Consumer) Stats() kafka.ReaderStats {
 	return c.reader.Stats()
 }
 
-// Lag - отставание консьюмера
 func (c *Consumer) Lag() int64 {
 	return c.reader.Lag()
 }
@@ -135,14 +129,10 @@ func WithCommitInterval(interval time.Duration) ConsumerOption {
 	}
 }
 
-// --- Message Handler Interface ---
-
-// MessageHandler - интерфейс обработчика сообщений
 type MessageHandler interface {
 	Handle(ctx context.Context, msg kafka.Message) error
 }
 
-// MessageHandlerFunc - функция-обработчик
 type MessageHandlerFunc func(ctx context.Context, msg kafka.Message) error
 
 // Handle -.
@@ -150,9 +140,6 @@ func (f MessageHandlerFunc) Handle(ctx context.Context, msg kafka.Message) error
 	return f(ctx, msg)
 }
 
-// --- Consumer Loop ---
-
-// Consume - запустить цикл обработки сообщений
 func (c *Consumer) Consume(ctx context.Context, handler MessageHandler) error {
 	for {
 		select {
@@ -165,15 +152,12 @@ func (c *Consumer) Consume(ctx context.Context, handler MessageHandler) error {
 			}
 
 			if err := handler.Handle(ctx, msg); err != nil {
-				// Логируем ошибку, но продолжаем обработку
-				// В продакшене здесь может быть retry логика или DLQ
 				return fmt.Errorf("handle message: %w", err)
 			}
 		}
 	}
 }
 
-// ConsumeWithRetry - обработка с ручным коммитом и retry
 func (c *Consumer) ConsumeWithRetry(ctx context.Context, handler MessageHandler, maxRetries int) error {
 	for {
 		select {
@@ -185,16 +169,14 @@ func (c *Consumer) ConsumeWithRetry(ctx context.Context, handler MessageHandler,
 				return fmt.Errorf("fetch message: %w", err)
 			}
 
-			// Попытки обработки с retry
 			var lastErr error
 			for attempt := 0; attempt <= maxRetries; attempt++ {
 				if err := handler.Handle(ctx, msg); err != nil {
 					lastErr = err
-					time.Sleep(time.Second * time.Duration(attempt+1)) // exponential backoff
+					time.Sleep(time.Second * time.Duration(attempt+1))
 					continue
 				}
 
-				// Успешная обработка - коммитим
 				if err := c.CommitMessages(ctx, msg); err != nil {
 					return fmt.Errorf("commit message: %w", err)
 				}
@@ -203,17 +185,12 @@ func (c *Consumer) ConsumeWithRetry(ctx context.Context, handler MessageHandler,
 			}
 
 			if lastErr != nil {
-				// Все попытки исчерпаны
-				// В продакшене здесь отправка в DLQ
 				return fmt.Errorf("message processing failed after %d retries: %w", maxRetries, lastErr)
 			}
 		}
 	}
 }
 
-// --- Helper для десериализации ---
-
-// UnmarshalMessage - десериализовать сообщение в структуру
 func UnmarshalMessage(msg kafka.Message, v interface{}) error {
 	if err := json.Unmarshal(msg.Value, v); err != nil {
 		return fmt.Errorf("unmarshal message: %w", err)
@@ -221,7 +198,6 @@ func UnmarshalMessage(msg kafka.Message, v interface{}) error {
 	return nil
 }
 
-// GetHeader - получить значение header
 func GetHeader(msg kafka.Message, key string) (string, bool) {
 	for _, h := range msg.Headers {
 		if h.Key == key {

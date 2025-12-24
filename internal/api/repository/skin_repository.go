@@ -12,7 +12,6 @@ import (
 	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
-// SkinRepository - интерфейс репозитория скинов для API
 type SkinRepository interface {
 	GetSkins(ctx context.Context, filter *entity.SkinFilter) ([]entity.Skin, int, error)
 	GetSkinBySlug(ctx context.Context, slug string) (*entity.Skin, error)
@@ -22,19 +21,16 @@ type SkinRepository interface {
 	GetPopularSkins(ctx context.Context, limit int) ([]entity.Skin, error)
 }
 
-// skinRepository - реализация репозитория
 type skinRepository struct {
 	pg *postgres.Postgres
 }
 
-// NewSkinRepository - создать репозиторий скинов
 func NewSkinRepository(pg *postgres.Postgres) SkinRepository {
 	return &skinRepository{
 		pg: pg,
 	}
 }
 
-// GetSkins - получить скины с фильтрацией
 func (r *skinRepository) GetSkins(ctx context.Context, filter *entity.SkinFilter) ([]entity.Skin, int, error) {
 	baseQuery := `
 		SELECT 
@@ -48,7 +44,6 @@ func (r *skinRepository) GetSkins(ctx context.Context, filter *entity.SkinFilter
 
 	countQuery := `SELECT COUNT(*) FROM skins`
 
-	// WHERE условия
 	conditions := []string{}
 	args := []interface{}{}
 	argIndex := 1
@@ -88,7 +83,6 @@ func (r *skinRepository) GetSkins(ctx context.Context, filter *entity.SkinFilter
 		whereClause = " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	// Получить total count
 	var total int
 	countQueryFull := countQuery + whereClause
 	if err := r.pg.Pool.QueryRow(ctx, countQueryFull, args...).Scan(&total); err != nil {
@@ -99,7 +93,6 @@ func (r *skinRepository) GetSkins(ctx context.Context, filter *entity.SkinFilter
 		return []entity.Skin{}, 0, nil
 	}
 
-	// Определить поле сортировки
 	sortBy := "updated_at"
 	switch filter.SortBy {
 	case "price":
@@ -121,7 +114,6 @@ func (r *skinRepository) GetSkins(ctx context.Context, filter *entity.SkinFilter
 		sortOrder = "ASC"
 	}
 
-	// Полный запрос
 	fullQuery := baseQuery + whereClause +
 		fmt.Sprintf(" ORDER BY %s %s LIMIT $%d OFFSET $%d", sortBy, sortOrder, argIndex, argIndex+1)
 
@@ -152,7 +144,6 @@ func (r *skinRepository) GetSkins(ctx context.Context, filter *entity.SkinFilter
 	return skins, total, nil
 }
 
-// GetSkinBySlug - получить скин по slug
 func (r *skinRepository) GetSkinBySlug(ctx context.Context, slug string) (*entity.Skin, error) {
 	query := `
 		SELECT 
@@ -184,7 +175,6 @@ func (r *skinRepository) GetSkinBySlug(ctx context.Context, slug string) (*entit
 	return &skin, nil
 }
 
-// GetPriceHistory - получить историю цен
 func (r *skinRepository) GetPriceHistory(ctx context.Context, skinID uuid.UUID, period entity.PriceStatsPeriod) ([]entity.PriceHistory, error) {
 	since := time.Now().Add(-period.GetDuration())
 
@@ -213,7 +203,6 @@ func (r *skinRepository) GetPriceHistory(ctx context.Context, skinID uuid.UUID, 
 	return history, nil
 }
 
-// GetSkinStatistics - получить статистику скина
 func (r *skinRepository) GetSkinStatistics(ctx context.Context, skinID uuid.UUID) (*entity.SkinStatistics, error) {
 	query := `
 		SELECT 
@@ -243,7 +232,6 @@ func (r *skinRepository) GetSkinStatistics(ctx context.Context, skinID uuid.UUID
 	return &stats, nil
 }
 
-// SearchSkins - поиск скинов
 func (r *skinRepository) SearchSkins(ctx context.Context, query string, limit int) ([]entity.Skin, error) {
 	sql := `
 		SELECT 
@@ -283,7 +271,6 @@ func (r *skinRepository) SearchSkins(ctx context.Context, query string, limit in
 	return skins, nil
 }
 
-// GetPopularSkins - получить популярные скины
 func (r *skinRepository) GetPopularSkins(ctx context.Context, limit int) ([]entity.Skin, error) {
 	query := `
 		SELECT 

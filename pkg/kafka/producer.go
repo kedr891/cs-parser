@@ -16,12 +16,10 @@ const (
 	_defaultBatchTimeout = time.Second
 )
 
-// Producer - Kafka message producer.
 type Producer struct {
 	writer *kafka.Writer
 }
 
-// NewProducer — создаёт продюсер Kafka и возвращает ошибку в случае неправильной конфигурации.
 func NewProducer(brokers []string, topic string, opts ...ProducerOption) (*Producer, error) {
 	if len(brokers) == 0 {
 		return nil, errors.New("kafka producer: brokers list is empty")
@@ -57,7 +55,6 @@ func NewProducer(brokers []string, topic string, opts ...ProducerOption) (*Produ
 	return &Producer{writer: writer}, nil
 }
 
-// WriteMessage - отправить одно сообщение
 func (p *Producer) WriteMessage(ctx context.Context, key string, value interface{}) error {
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -77,7 +74,6 @@ func (p *Producer) WriteMessage(ctx context.Context, key string, value interface
 	return nil
 }
 
-// WriteMessages - отправить несколько сообщений
 func (p *Producer) WriteMessages(ctx context.Context, messages []kafka.Message) error {
 	if err := p.writer.WriteMessages(ctx, messages...); err != nil {
 		return fmt.Errorf("kafka producer - write messages: %w", err)
@@ -85,7 +81,6 @@ func (p *Producer) WriteMessages(ctx context.Context, messages []kafka.Message) 
 	return nil
 }
 
-// Close — закрывает продюсер
 func (p *Producer) Close() error {
 	if p.writer != nil {
 		return p.writer.Close()
@@ -93,12 +88,10 @@ func (p *Producer) Close() error {
 	return nil
 }
 
-// Stats - статистика продюсера
 func (p *Producer) Stats() kafka.WriterStats {
 	return p.writer.Stats()
 }
 
-// producerConfig - internal options
 type producerConfig struct {
 	writeTimeout time.Duration
 	batchSize    int
@@ -106,7 +99,6 @@ type producerConfig struct {
 	compression  kafka.Compression
 }
 
-// ProducerOption — настройки
 type ProducerOption func(*producerConfig)
 
 // WithWriteTimeout -.
@@ -137,7 +129,6 @@ func WithCompression(compression kafka.Compression) ProducerOption {
 	}
 }
 
-// NewMessage - helper для создания сообщения
 func NewMessage(key string, value interface{}) (kafka.Message, error) {
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -151,7 +142,6 @@ func NewMessage(key string, value interface{}) (kafka.Message, error) {
 	}, nil
 }
 
-// NewMessageWithHeaders - создать сообщение с headers
 func NewMessageWithHeaders(key string, value interface{}, headers map[string]string) (kafka.Message, error) {
 	data, err := json.Marshal(value)
 	if err != nil {

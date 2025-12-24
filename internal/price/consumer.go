@@ -12,7 +12,6 @@ import (
 	kafkago "github.com/segmentio/kafka-go"
 )
 
-// Consumer - консьюмер событий изменения цен
 type Consumer struct {
 	consumer      *kafka.Consumer
 	alertProducer domain.MessageProducer
@@ -22,7 +21,6 @@ type Consumer struct {
 	log           domain.Logger
 }
 
-// NewConsumer - создать консьюмер
 func NewConsumer(
 	consumer *kafka.Consumer,
 	alertProducer domain.MessageProducer,
@@ -41,7 +39,6 @@ func NewConsumer(
 	}
 }
 
-// Start - запустить обработку сообщений
 func (c *Consumer) Start(ctx context.Context) error {
 	c.log.Info("Price consumer started")
 
@@ -49,7 +46,6 @@ func (c *Consumer) Start(ctx context.Context) error {
 		return c.handlePriceUpdate(ctx, msg)
 	})
 
-	// Запуск с retry (максимум 3 попытки)
 	if err := c.consumer.ConsumeWithRetry(ctx, handler, 3); err != nil {
 		return fmt.Errorf("consume messages: %w", err)
 	}
@@ -57,9 +53,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 	return nil
 }
 
-// handlePriceUpdate - обработать событие обновления цены
 func (c *Consumer) handlePriceUpdate(ctx context.Context, msg kafkago.Message) error {
-	// Десериализация события
 	var event entity.PriceUpdateEvent
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
 		c.log.Error("Failed to unmarshal price event", "error", err)
@@ -73,30 +67,22 @@ func (c *Consumer) handlePriceUpdate(ctx context.Context, msg kafkago.Message) e
 		"change", event.PriceChange,
 	)
 
-	// 1. Сохранить историю цены
 	if err := c.savePriceHistory(ctx, &event); err != nil {
 		c.log.Error("Failed to save price history", "error", err)
 		return fmt.Errorf("save price history: %w", err)
 	}
-
-	// 2. Обновить кэш в Redis
 	if err := c.updatePriceCache(ctx, &event); err != nil {
 		c.log.Warn("Failed to update cache", "error", err)
-		// Не возвращаем ошибку, так как это не критично
 	}
 
-	// 3. Обновить аналитику (trending, статистика)
 	if err := c.analytics.UpdateTrending(ctx, &event); err != nil {
 		c.log.Warn("Failed to update trending", "error", err)
 	}
 
-	// 4. Проверить watchlist и отправить алерты
 	if err := c.processWatchlistAlerts(ctx, &event); err != nil {
 		c.log.Error("Failed to process watchlist alerts", "error", err)
-		// Продолжаем, чтобы не блокировать обработку
 	}
 
-	// 5. Обновить market overview
 	if event.IsSignificantChange() {
 		if err := c.analytics.InvalidateMarketOverview(ctx); err != nil {
 			c.log.Warn("Failed to invalidate market overview", "error", err)
@@ -111,7 +97,6 @@ func (c *Consumer) handlePriceUpdate(ctx context.Context, msg kafkago.Message) e
 	return nil
 }
 
-// savePriceHistory - сохранить историю цены в БД
 func (c *Consumer) savePriceHistory(ctx context.Context, event *entity.PriceUpdateEvent) error {
 	history := entity.NewPriceHistory(
 		event.SkinID,
@@ -127,7 +112,6 @@ func (c *Consumer) savePriceHistory(ctx context.Context, event *entity.PriceUpda
 	return nil
 }
 
-// updatePriceCache - обновить кэш цены в Redis
 func (c *Consumer) updatePriceCache(ctx context.Context, event *entity.PriceUpdateEvent) error {
 	cacheKey := fmt.Sprintf("skin:price:%s", event.SkinID.String())
 
@@ -144,7 +128,6 @@ func (c *Consumer) updatePriceCache(ctx context.Context, event *entity.PriceUpda
 		return fmt.Errorf("marshal cache data: %w", err)
 	}
 
-	// TTL 5 минут (до следующего парсинга)
 	if err := c.cache.Set(ctx, cacheKey, string(data), 5*time.Minute); err != nil {
 		return fmt.Errorf("set cache: %w", err)
 	}
@@ -152,27 +135,23 @@ func (c *Consumer) updatePriceCache(ctx context.Context, event *entity.PriceUpda
 	return nil
 }
 
-// processWatchlistAlerts - обработать алерты для watchlist
 func (c *Consumer) processWatchlistAlerts(ctx context.Context, event *entity.PriceUpdateEvent) error {
-	// Получить всех пользователей, отслеживающих этот скин
 	watchlists, err := c.repo.GetWatchlistsBySkinID(ctx, event.SkinID)
 	if err != nil {
 		return fmt.Errorf("get watchlists: %w", err)
 	}
 
 	if len(watchlists) == 0 {
-		return nil // никто не отслеживает
+		return nil
 	}
 
 	c.log.Debug("Found watchlists", "count", len(watchlists), "skin_id", event.SkinID)
 
-	// Проверить условия для каждого watchlist
 	for _, wl := range watchlists {
 		if !wl.ShouldNotify(event.NewPrice, event.OldPrice) {
 			continue
 		}
 
-		// Создать событие алерта
 		alertEvent := entity.NewPriceAlertNotification(
 			wl.UserID,
 			event.SkinID,
@@ -181,13 +160,11 @@ func (c *Consumer) processWatchlistAlerts(ctx context.Context, event *entity.Pri
 			event.NewPrice,
 		)
 
-		// Добавить target price если есть
 		if wl.TargetPrice != nil {
 			alertEvent.TargetPrice = wl.TargetPrice
 			alertEvent.NotificationType = entity.TypeTargetReached
 		}
 
-		// Отправить в Kafka для notification service
 		if err := c.alertProducer.WriteMessage(ctx, wl.UserID.String(), alertEvent); err != nil {
 			c.log.Error("Failed to send alert",
 				"user_id", wl.UserID,
@@ -207,7 +184,6 @@ func (c *Consumer) processWatchlistAlerts(ctx context.Context, event *entity.Pri
 	return nil
 }
 
-// GetStats - получить статистику консьюмера
 func (c *Consumer) GetStats(ctx context.Context) *ConsumerStats {
 	stats := c.consumer.Stats()
 	lag := c.consumer.Lag()
@@ -221,7 +197,6 @@ func (c *Consumer) GetStats(ctx context.Context) *ConsumerStats {
 	}
 }
 
-// ConsumerStats - статистика консьюмера
 type ConsumerStats struct {
 	Messages   int64     `json:"messages"`
 	Bytes      int64     `json:"bytes"`
@@ -230,7 +205,6 @@ type ConsumerStats struct {
 	LastUpdate time.Time `json:"last_update"`
 }
 
-// HandleSkinDiscovered - обработать событие обнаружения нового скина
 func (c *Consumer) HandleSkinDiscovered(ctx context.Context, msg kafkago.Message) error {
 	var event entity.SkinDiscoveredEvent
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
@@ -241,11 +215,6 @@ func (c *Consumer) HandleSkinDiscovered(ctx context.Context, msg kafkago.Message
 		"name", event.MarketHashName,
 		"price", event.InitialPrice,
 	)
-
-	// Можно добавить дополнительную логику:
-	// - Уведомление администраторов
-	// - Автоматическое добавление в trending
-	// - Инициализация аналитики для нового скина
 
 	return nil
 }

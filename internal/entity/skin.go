@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Skin - модель скина CS2
 type Skin struct {
 	ID             uuid.UUID `json:"id" db:"id"`
 	Slug           string    `json:"slug" db:"slug"`
@@ -30,12 +29,10 @@ type Skin struct {
 	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// GenerateSlug - генерировать slug из market_hash_name
 // Пример: "AWP | Acheron (Field-Tested)" -> "awp_acheron_ft"
 func GenerateSlug(marketHashName string) string {
 	slug := strings.ToLower(marketHashName)
 
-	// Заменить качества на аббревиатуры
 	qualityReplacements := map[string]string{
 		"(factory new)":    "fn",
 		"(minimal wear)":   "mw",
@@ -48,20 +45,16 @@ func GenerateSlug(marketHashName string) string {
 		slug = strings.ReplaceAll(slug, full, abbr)
 	}
 
-	// Убрать скобки и спецсимволы
 	slug = regexp.MustCompile(`[|()\[\]{}]`).ReplaceAllString(slug, "")
 
-	// Заменить пробелы и другие символы на подчеркивание
 	slug = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(slug, "_")
 
-	// Убрать лишние подчеркивания
 	slug = strings.Trim(slug, "_")
 	slug = regexp.MustCompile(`_+`).ReplaceAllString(slug, "_")
 
 	return slug
 }
 
-// SkinQuality - качество скина
 type SkinQuality string
 
 const (
@@ -73,7 +66,6 @@ const (
 	QualityNotPainted    SkinQuality = "Not Painted"
 )
 
-// SkinRarity - редкость скина
 type SkinRarity string
 
 const (
@@ -86,7 +78,6 @@ const (
 	RarityContraband      SkinRarity = "Contraband"
 )
 
-// SkinCategory - категория оружия
 type SkinCategory string
 
 const (
@@ -100,12 +91,11 @@ const (
 	CategoryGloves     SkinCategory = "Gloves"
 )
 
-// NewSkin - создать новый скин
 func NewSkin(marketHashName, name, weapon, quality string) *Skin {
 	now := time.Now()
 	return &Skin{
 		ID:             uuid.New(),
-		Slug:           GenerateSlug(marketHashName), // ✅ Автогенерация slug
+		Slug:           GenerateSlug(marketHashName),
 		MarketHashName: marketHashName,
 		Name:           name,
 		Weapon:         weapon,
@@ -117,7 +107,6 @@ func NewSkin(marketHashName, name, weapon, quality string) *Skin {
 	}
 }
 
-// UpdatePrice - обновить цену скина
 func (s *Skin) UpdatePrice(newPrice float64, volume int) {
 	s.CurrentPrice = newPrice
 	s.Volume24h = volume
@@ -125,7 +114,6 @@ func (s *Skin) UpdatePrice(newPrice float64, volume int) {
 	s.UpdatedAt = time.Now()
 }
 
-// CalculatePriceChange - рассчитать изменение цены
 func (s *Skin) CalculatePriceChange(oldPrice float64) float64 {
 	if oldPrice == 0 {
 		return 0
@@ -133,17 +121,14 @@ func (s *Skin) CalculatePriceChange(oldPrice float64) float64 {
 	return ((s.CurrentPrice - oldPrice) / oldPrice) * 100
 }
 
-// IsPopular - популярный ли скин (высокий объём торгов)
 func (s *Skin) IsPopular() bool {
 	return s.Volume24h > 100
 }
 
-// IsTrending - в тренде ли скин (рост цены)
 func (s *Skin) IsTrending() bool {
 	return s.PriceChange24h > 5.0
 }
 
-// GetCategory - получить категорию оружия
 func (s *Skin) GetCategory() SkinCategory {
 	weapons := map[string]SkinCategory{
 		"AK-47":           CategoryRifle,
@@ -170,20 +155,17 @@ func (s *Skin) GetCategory() SkinCategory {
 		return category
 	}
 
-	// Проверка на перчатки
 	if len(s.Weapon) > 6 && s.Weapon[:6] == "Gloves" {
 		return CategoryGloves
 	}
 
-	// Проверка на ножи (содержит "Knife")
 	if len(s.Weapon) > 5 && (s.Weapon[len(s.Weapon)-5:] == "Knife" || s.Weapon[:5] == "Knife") {
 		return CategoryKnife
 	}
 
-	return CategoryRifle // по умолчанию
+	return CategoryRifle
 }
 
-// SkinFilter - фильтр для поиска скинов
 type SkinFilter struct {
 	Weapon    string
 	Quality   string
@@ -191,13 +173,12 @@ type SkinFilter struct {
 	MinPrice  float64
 	MaxPrice  float64
 	Search    string
-	SortBy    string // price, volume, name, updated
-	SortOrder string // asc, desc
+	SortBy    string
+	SortOrder string
 	Limit     int
 	Offset    int
 }
 
-// NewSkinFilter - создать фильтр по умолчанию
 func NewSkinFilter() *SkinFilter {
 	return &SkinFilter{
 		SortBy:    "updated",
@@ -207,7 +188,6 @@ func NewSkinFilter() *SkinFilter {
 	}
 }
 
-// SkinListResponse - ответ со списком скинов
 type SkinListResponse struct {
 	Skins      []Skin `json:"skins"`
 	Total      int    `json:"total"`
@@ -216,14 +196,12 @@ type SkinListResponse struct {
 	TotalPages int    `json:"total_pages"`
 }
 
-// SkinDetailResponse - детальная информация о скине
 type SkinDetailResponse struct {
 	Skin         Skin           `json:"skin"`
 	PriceHistory []PriceHistory `json:"price_history"`
 	Statistics   SkinStatistics `json:"statistics"`
 }
 
-// SkinStatistics - статистика по скину
 type SkinStatistics struct {
 	AvgPrice7d      float64 `json:"avg_price_7d"`
 	AvgPrice30d     float64 `json:"avg_price_30d"`
@@ -232,14 +210,12 @@ type SkinStatistics struct {
 	ViewCount       int64   `json:"view_count"`
 }
 
-// TrendingSkin - скин в трендах
 type TrendingSkin struct {
 	Skin            Skin    `json:"skin"`
 	PriceChangeRate float64 `json:"price_change_rate"`
 	Rank            int     `json:"rank"`
 }
 
-// SkinSlugResponse - краткий ответ со slug
 type SkinSlugResponse struct {
 	ID             uuid.UUID `json:"id"`
 	Slug           string    `json:"slug"`
@@ -249,7 +225,6 @@ type SkinSlugResponse struct {
 	ImageURL       string    `json:"image_url"`
 }
 
-// ToSlugResponse - конвертировать в краткий ответ
 func (s *Skin) ToSlugResponse() SkinSlugResponse {
 	return SkinSlugResponse{
 		ID:             s.ID,

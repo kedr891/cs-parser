@@ -11,14 +11,12 @@ import (
 	"github.com/kedr891/cs-parser/internal/entity"
 )
 
-// AnalyticsService - сервис для аналитики
 type AnalyticsService struct {
 	repo  repository.AnalyticsRepository
 	cache domain.CacheStorage
 	log   domain.Logger
 }
 
-// NewAnalyticsService - создать сервис аналитики
 func NewAnalyticsService(
 	repo repository.AnalyticsRepository,
 	cache domain.CacheStorage,
@@ -31,9 +29,7 @@ func NewAnalyticsService(
 	}
 }
 
-// GetTrendingSkins - получить трендовые скины
 func (s *AnalyticsService) GetTrendingSkins(ctx context.Context, period string, limit int) ([]entity.Skin, error) {
-	// Проверить кэш
 	cacheKey := fmt.Sprintf("analytics:trending:%s:%d", period, limit)
 	if cached, err := s.cache.Get(ctx, cacheKey); err == nil {
 		var skins []entity.Skin
@@ -42,13 +38,11 @@ func (s *AnalyticsService) GetTrendingSkins(ctx context.Context, period string, 
 		}
 	}
 
-	// Получить из БД
 	skins, err := s.repo.GetTrendingSkins(ctx, period, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get trending skins: %w", err)
 	}
 
-	// Сохранить в кэш
 	if data, err := json.Marshal(skins); err == nil {
 		_ = s.cache.Set(ctx, cacheKey, string(data), 5*time.Minute)
 	}
@@ -56,9 +50,7 @@ func (s *AnalyticsService) GetTrendingSkins(ctx context.Context, period string, 
 	return skins, nil
 }
 
-// GetMarketOverview - получить обзор рынка
 func (s *AnalyticsService) GetMarketOverview(ctx context.Context) (*entity.MarketOverview, error) {
-	// Проверить кэш
 	cacheKey := "analytics:market:overview"
 	if cached, err := s.cache.Get(ctx, cacheKey); err == nil {
 		var overview entity.MarketOverview
@@ -67,7 +59,6 @@ func (s *AnalyticsService) GetMarketOverview(ctx context.Context) (*entity.Marke
 		}
 	}
 
-	// Получить данные из БД
 	totalSkins, err := s.repo.GetTotalSkinsCount(ctx)
 	if err != nil {
 		s.log.Warn("Failed to get total skins count", "error", err)
@@ -120,7 +111,6 @@ func (s *AnalyticsService) GetMarketOverview(ctx context.Context) (*entity.Marke
 		RecentlyUpdated: recentlyUpdated,
 	}
 
-	// Сохранить в кэш
 	if data, err := json.Marshal(overview); err == nil {
 		_ = s.cache.Set(ctx, cacheKey, string(data), 10*time.Minute)
 	}
@@ -128,9 +118,7 @@ func (s *AnalyticsService) GetMarketOverview(ctx context.Context) (*entity.Marke
 	return overview, nil
 }
 
-// GetPopularSearches - получить популярные поисковые запросы из Redis sorted set
 func (s *AnalyticsService) GetPopularSearches(ctx context.Context, limit int) ([]string, error) {
-	// Получаем топ поисковых запросов из Redis sorted set
 	cacheKey := "analytics:popular:searches"
 
 	searches, err := s.cache.ZRevRange(ctx, cacheKey, 0, int64(limit-1))

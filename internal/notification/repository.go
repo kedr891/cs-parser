@@ -12,7 +12,6 @@ import (
 	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
-// Repository - интерфейс репозитория для уведомлений
 type Repository interface {
 	CreateNotification(ctx context.Context, notification *entity.Notification) error
 	GetNotifications(ctx context.Context, filter *entity.NotificationFilter) ([]entity.Notification, error)
@@ -24,13 +23,11 @@ type Repository interface {
 	GetNotificationStats(ctx context.Context, userID uuid.UUID) (*entity.NotificationStats, error)
 }
 
-// repository - реализация репозитория
 type repository struct {
 	pg  *postgres.Postgres
 	log *logger.Logger
 }
 
-// NewRepository - создать репозиторий
 func NewRepository(pg *postgres.Postgres, log *logger.Logger) Repository {
 	return &repository{
 		pg:  pg,
@@ -38,7 +35,6 @@ func NewRepository(pg *postgres.Postgres, log *logger.Logger) Repository {
 	}
 }
 
-// CreateNotification - создать уведомление
 func (r *repository) CreateNotification(ctx context.Context, notification *entity.Notification) error {
 	dataJSON, err := json.Marshal(notification.Data)
 	if err != nil {
@@ -69,7 +65,6 @@ func (r *repository) CreateNotification(ctx context.Context, notification *entit
 	return nil
 }
 
-// GetNotifications - получить уведомления с фильтром
 func (r *repository) GetNotifications(ctx context.Context, filter *entity.NotificationFilter) ([]entity.Notification, error) {
 	query := `
 		SELECT id, user_id, type, title, message, data, is_read, priority, created_at, read_at
@@ -80,28 +75,24 @@ func (r *repository) GetNotifications(ctx context.Context, filter *entity.Notifi
 	args := []interface{}{filter.UserID}
 	argIndex := 2
 
-	// Фильтр по прочитанности
 	if filter.IsRead != nil {
 		query += fmt.Sprintf(" AND is_read = $%d", argIndex)
 		args = append(args, *filter.IsRead)
 		argIndex++
 	}
 
-	// Фильтр по типам
 	if len(filter.Types) > 0 {
 		query += fmt.Sprintf(" AND type = ANY($%d)", argIndex)
 		args = append(args, filter.Types)
 		argIndex++
 	}
 
-	// Фильтр по приоритету
 	if filter.Priority != nil {
 		query += fmt.Sprintf(" AND priority = $%d", argIndex)
 		args = append(args, *filter.Priority)
 		argIndex++
 	}
 
-	// Фильтр по времени
 	if filter.Since != nil {
 		query += fmt.Sprintf(" AND created_at >= $%d", argIndex)
 		args = append(args, *filter.Since)
@@ -138,7 +129,6 @@ func (r *repository) GetNotifications(ctx context.Context, filter *entity.Notifi
 			return nil, fmt.Errorf("scan notification: %w", err)
 		}
 
-		// Десериализация data
 		if len(dataJSON) > 0 {
 			if err := json.Unmarshal(dataJSON, &n.Data); err != nil {
 				r.log.Warn("Failed to unmarshal notification data", "error", err)
@@ -154,7 +144,6 @@ func (r *repository) GetNotifications(ctx context.Context, filter *entity.Notifi
 	return notifications, nil
 }
 
-// MarkNotificationsAsRead - пометить уведомления как прочитанные
 func (r *repository) MarkNotificationsAsRead(ctx context.Context, userID uuid.UUID, notificationIDs []uuid.UUID) error {
 	query := `
 		UPDATE notifications
@@ -170,7 +159,6 @@ func (r *repository) MarkNotificationsAsRead(ctx context.Context, userID uuid.UU
 	return nil
 }
 
-// GetUnreadCount - получить количество непрочитанных
 func (r *repository) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	query := `SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false`
@@ -183,7 +171,6 @@ func (r *repository) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int,
 	return count, nil
 }
 
-// GetNotificationPreferences - получить настройки уведомлений
 func (r *repository) GetNotificationPreferences(ctx context.Context, userID uuid.UUID) (*entity.NotificationPreferences, error) {
 	query := `
 		SELECT 
@@ -213,11 +200,9 @@ func (r *repository) GetNotificationPreferences(ctx context.Context, userID uuid
 	)
 
 	if err != nil {
-		// Если настройки не найдены, вернуть дефолтные
 		return entity.NewNotificationPreferences(userID), nil
 	}
 
-	// Десериализация типов
 	if err := json.Unmarshal(enabledTypesJSON, &prefs.EnabledTypes); err != nil {
 		r.log.Warn("Failed to unmarshal enabled types", "error", err)
 		prefs.EnabledTypes = []entity.NotificationType{entity.TypePriceDrop, entity.TypeTargetReached}
@@ -226,7 +211,6 @@ func (r *repository) GetNotificationPreferences(ctx context.Context, userID uuid
 	return &prefs, nil
 }
 
-// UpdateNotificationPreferences - обновить настройки уведомлений
 func (r *repository) UpdateNotificationPreferences(ctx context.Context, preferences *entity.NotificationPreferences) error {
 	enabledTypesJSON, err := json.Marshal(preferences.EnabledTypes)
 	if err != nil {
@@ -274,7 +258,6 @@ func (r *repository) UpdateNotificationPreferences(ctx context.Context, preferen
 	return nil
 }
 
-// DeleteOldNotifications - удалить старые уведомления
 func (r *repository) DeleteOldNotifications(ctx context.Context, before time.Time) (int, error) {
 	query := `DELETE FROM notifications WHERE created_at < $1 AND is_read = true`
 
@@ -286,7 +269,6 @@ func (r *repository) DeleteOldNotifications(ctx context.Context, before time.Tim
 	return int(result.RowsAffected()), nil
 }
 
-// GetNotificationStats - получить статистику уведомлений
 func (r *repository) GetNotificationStats(ctx context.Context, userID uuid.UUID) (*entity.NotificationStats, error) {
 	query := `
 		SELECT 
@@ -308,7 +290,6 @@ func (r *repository) GetNotificationStats(ctx context.Context, userID uuid.UUID)
 		return nil, fmt.Errorf("get stats: %w", err)
 	}
 
-	// Статистика по типам
 	typeQuery := `
 		SELECT type, COUNT(*) 
 		FROM notifications 
@@ -318,7 +299,7 @@ func (r *repository) GetNotificationStats(ctx context.Context, userID uuid.UUID)
 
 	rows, err := r.pg.Pool.Query(ctx, typeQuery, userID)
 	if err != nil {
-		return &stats, nil // Возвращаем базовую статистику
+		return &stats, nil
 	}
 	defer rows.Close()
 
@@ -331,7 +312,6 @@ func (r *repository) GetNotificationStats(ctx context.Context, userID uuid.UUID)
 		}
 	}
 
-	// Статистика по приоритетам
 	priorityQuery := `
 		SELECT priority, COUNT(*) 
 		FROM notifications 

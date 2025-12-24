@@ -17,7 +17,6 @@ const (
 	_rateLimitTTL   = time.Minute
 )
 
-// Service - сервис парсинга цен
 type Service struct {
 	repo              domain.SkinRepository
 	marketClient      domain.MarketClient
@@ -27,7 +26,6 @@ type Service struct {
 	log               domain.Logger
 }
 
-// NewService - создать сервис парсинга
 func NewService(
 	repo domain.SkinRepository,
 	marketClient domain.MarketClient,
@@ -46,12 +44,10 @@ func NewService(
 	}
 }
 
-// ParseAllSkins - парсинг всех скинов из БД
 func (s *Service) ParseAllSkins(ctx context.Context) error {
 	s.log.Info("Starting full skin parsing cycle")
 	startTime := time.Now()
 
-	// Получить все скины из БД
 	skins, err := s.repo.GetAllSkins(ctx)
 	if err != nil {
 		return fmt.Errorf("get all skins: %w", err)
@@ -65,7 +61,6 @@ func (s *Service) ParseAllSkins(ctx context.Context) error {
 		return nil
 	}
 
-	// Парсинг с использованием worker pool
 	successCount, errorCount := s.parseSkinsWithWorkers(ctx, skins)
 
 	duration := time.Since(startTime)
@@ -79,7 +74,6 @@ func (s *Service) ParseAllSkins(ctx context.Context) error {
 	return nil
 }
 
-// parseSkinsWithWorkers - параллельный парсинг с worker pool
 func (s *Service) parseSkinsWithWorkers(ctx context.Context, skins []entity.Skin) (success, errors int) {
 	var (
 		successCount int
@@ -87,12 +81,11 @@ func (s *Service) parseSkinsWithWorkers(ctx context.Context, skins []entity.Skin
 		mu           sync.Mutex
 	)
 
-	// Worker pool
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(_defaultWorkers)
 
 	for _, skin := range skins {
-		skin := skin // capture loop variable
+		skin := skin
 
 		g.Go(func() error {
 			if err := s.parseSingleSkin(ctx, &skin); err != nil {
@@ -109,11 +102,10 @@ func (s *Service) parseSkinsWithWorkers(ctx context.Context, skins []entity.Skin
 				successCount++
 				mu.Unlock()
 			}
-			return nil // продолжаем даже при ошибках
+			return nil
 		})
 	}
 
-	// Ждём завершения всех воркеров
 	if err := g.Wait(); err != nil {
 		s.log.Error("Worker pool error", "error", err)
 	}
@@ -121,34 +113,27 @@ func (s *Service) parseSkinsWithWorkers(ctx context.Context, skins []entity.Skin
 	return successCount, errorCount
 }
 
-// parseSingleSkin - парсинг одного скина
 func (s *Service) parseSingleSkin(ctx context.Context, skin *entity.Skin) error {
-	// Проверка rate limit
 	if err := s.checkRateLimit(ctx); err != nil {
 		return fmt.Errorf("rate limit exceeded: %w", err)
 	}
 
-	// Получить цену из Steam Market
 	priceData, err := s.marketClient.GetItemPrice(ctx, skin.MarketHashName)
 	if err != nil {
 		return fmt.Errorf("get steam price: %w", err)
 	}
 
-	// Сохранить старую цену для сравнения
 	oldPrice := skin.CurrentPrice
 
-	// Обновить скин в БД
 	if err := s.repo.UpdateSkinPrice(ctx, skin.ID, priceData.Price, priceData.Volume); err != nil {
 		return fmt.Errorf("update skin price: %w", err)
 	}
 
-	// Инвалидировать кэш
 	cacheKey := fmt.Sprintf("skin:price:%s", skin.ID.String())
 	if err := s.cache.Delete(ctx, cacheKey); err != nil {
 		s.log.Warn("Failed to invalidate cache", "key", cacheKey, "error", err)
 	}
 
-	// Создать событие обновления цены
 	priceEvent := entity.NewPriceUpdateEvent(
 		skin.ID,
 		skin.Slug,
@@ -159,13 +144,11 @@ func (s *Service) parseSingleSkin(ctx context.Context, skin *entity.Skin) error 
 		priceData.Volume,
 	)
 
-	// Отправить в Kafka
 	if err := s.priceProducer.WriteMessage(ctx, skin.ID.String(), priceEvent); err != nil {
 		s.log.Error("Failed to send price event to Kafka",
 			"skin_id", skin.ID,
 			"error", err,
 		)
-		// Не возвращаем ошибку, так как цена уже обновлена в БД
 	}
 
 	s.log.Debug("Skin parsed successfully",
@@ -178,11 +161,9 @@ func (s *Service) parseSingleSkin(ctx context.Context, skin *entity.Skin) error 
 	return nil
 }
 
-// DiscoverNewSkins - поиск новых скинов
 func (s *Service) DiscoverNewSkins(ctx context.Context, searchQuery string) error {
 	s.log.Info("Starting skin discovery", "query", searchQuery)
 
-	// Поиск скинов через Steam API
 	items, err := s.marketClient.SearchItems(ctx, searchQuery)
 	if err != nil {
 		return fmt.Errorf("search items: %w", err)
@@ -192,7 +173,6 @@ func (s *Service) DiscoverNewSkins(ctx context.Context, searchQuery string) erro
 
 	var discoveredCount int
 	for _, item := range items {
-		// Проверить, существует ли уже в БД
 		exists, err := s.repo.SkinExists(ctx, item.MarketHashName)
 		if err != nil {
 			s.log.Error("Failed to check skin existence", "error", err)
@@ -203,7 +183,6 @@ func (s *Service) DiscoverNewSkins(ctx context.Context, searchQuery string) erro
 			continue
 		}
 
-		// Создать новый скин
 		skin := entity.NewSkin(
 			item.MarketHashName,
 			item.Name,
@@ -215,13 +194,11 @@ func (s *Service) DiscoverNewSkins(ctx context.Context, searchQuery string) erro
 		skin.CurrentPrice = item.Price
 		skin.Currency = "USD"
 
-		// Сохранить в БД
 		if err := s.repo.CreateSkin(ctx, skin); err != nil {
 			s.log.Error("Failed to create skin", "error", err)
 			continue
 		}
 
-		// Создать событие обнаружения
 		discoveryEvent := entity.NewSkinDiscoveredEvent(
 			skin.MarketHashName,
 			skin.Name,
@@ -233,7 +210,6 @@ func (s *Service) DiscoverNewSkins(ctx context.Context, searchQuery string) erro
 			skin.ImageURL,
 		)
 
-		// Отправить в Kafka
 		if err := s.discoveryProducer.WriteMessage(ctx, skin.ID.String(), discoveryEvent); err != nil {
 			s.log.Error("Failed to send discovery event", "error", err)
 		}
@@ -250,7 +226,6 @@ func (s *Service) DiscoverNewSkins(ctx context.Context, searchQuery string) erro
 	return nil
 }
 
-// ParseSpecificSkins - парсинг конкретных скинов по ID
 func (s *Service) ParseSpecificSkins(ctx context.Context, slugs []string) error {
 	s.log.Info("Starting specific skins parsing", "count", len(slugs))
 
@@ -278,14 +253,12 @@ func (s *Service) ParseSpecificSkins(ctx context.Context, slugs []string) error 
 	return nil
 }
 
-// checkRateLimit - проверка rate limit
 func (s *Service) checkRateLimit(ctx context.Context) error {
 	count, err := s.cache.IncrementRateLimit(ctx, _rateLimitKey, _rateLimitTTL)
 	if err != nil {
 		return fmt.Errorf("increment rate limit: %w", err)
 	}
 
-	// Максимум 60 запросов в минуту
 	if count > 60 {
 		return fmt.Errorf("rate limit exceeded: %d requests in last minute", count)
 	}
@@ -293,14 +266,12 @@ func (s *Service) checkRateLimit(ctx context.Context) error {
 	return nil
 }
 
-// GetStats - получить статистику парсера
 func (s *Service) GetStats(ctx context.Context) (*ParserStats, error) {
 	totalSkins, err := s.repo.GetSkinsCount(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get skins count: %w", err)
 	}
 
-	// Получить rate limit
 	rateLimit, err := s.cache.GetRateLimit(ctx, _rateLimitKey)
 	if err != nil {
 		rateLimit = 0
@@ -313,7 +284,6 @@ func (s *Service) GetStats(ctx context.Context) (*ParserStats, error) {
 	}, nil
 }
 
-// ParserStats - статистика парсера
 type ParserStats struct {
 	TotalSkins      int       `json:"total_skins"`
 	RequestsLastMin int       `json:"requests_last_min"`

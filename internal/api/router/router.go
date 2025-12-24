@@ -2,11 +2,13 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	_ "github.com/kedr891/cs-parser/docs"
 	"github.com/kedr891/cs-parser/internal/api/handler"
 	"github.com/kedr891/cs-parser/internal/api/middleware"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-// SetupRoutes - настройка маршрутов API
 func SetupRoutes(
 	r *gin.Engine,
 	skinHandler *handler.SkinHandler,
@@ -14,10 +16,10 @@ func SetupRoutes(
 	analyticsHandler *handler.AnalyticsHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
-	// API v1
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	v1 := r.Group("/api/v1")
 	{
-		// Public endpoints - Skins
 		skins := v1.Group("/skins")
 		{
 			skins.GET("", skinHandler.GetSkins)
@@ -27,7 +29,6 @@ func SetupRoutes(
 			skins.GET("/chart/:slug", skinHandler.GetPriceChart)
 		}
 
-		// Public endpoints - Analytics
 		analytics := v1.Group("/analytics")
 		{
 			analytics.GET("/trending", analyticsHandler.GetTrending)
@@ -35,14 +36,12 @@ func SetupRoutes(
 			analytics.GET("/popular-searches", analyticsHandler.GetPopularSearches)
 		}
 
-		// Auth endpoints
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/register", userHandler.Register)
 			auth.POST("/login", userHandler.Login)
 		}
 
-		// Protected endpoints - Users
 		users := v1.Group("/users")
 		users.Use(authMiddleware.RequireAuth())
 		{
@@ -54,7 +53,6 @@ func SetupRoutes(
 			users.POST("/me/notifications/read", userHandler.MarkNotificationsRead)
 		}
 
-		// Admin endpoints (if needed)
 		admin := v1.Group("/admin")
 		admin.Use(authMiddleware.RequireAuth())
 		admin.Use(authMiddleware.RequireAdmin())

@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -10,42 +9,17 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"github.com/goccy/go-json"
-	protov1 "github.com/kedr891/cs-parser/docs/proto/v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
-	// Base settings
-	host     = "app"
+	host     = "api"
 	attempts = 20
 
-	// Attempts connection
 	httpURL        = "http://" + host + ":8080"
-	healthPath     = httpURL + "/healthz"
+	healthPath     = httpURL + "/health"
 	requestTimeout = 5 * time.Second
 
-	// HTTP REST
-	basePathV1 = httpURL + "/v1"
-
-	// gRPC
-	grpcURL = host + ":8081"
-
-	// RPC configs
-	rpcServerExchange = "rpc_server"
-	rpcClientExchange = "rpc_client"
-	requests          = 10
-
-	// RabbitMQ RPC
-	rmqURL = "amqp://guest:guest@rabbitmq:5672/"
-
-	// RabbitMQ RPC
-	natsURL = "nats://guest:guest@nats:4222/"
-
-	// Test data
-	expectedOriginal = "текст для перевода"
+	basePathV1 = httpURL + "/api/v1"
 )
 
 var errHealthCheck = fmt.Errorf("url %s is not available", healthPath)
@@ -63,14 +37,12 @@ func doWebRequestWithTimeout(ctx context.Context, method, url string, body io.Re
 
 func getHealthCheck(url string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-
 	defer cancel()
 
 	resp, err := doWebRequestWithTimeout(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return -1, err
 	}
-
 	defer resp.Body.Close()
 
 	return resp.StatusCode, nil
@@ -80,7 +52,10 @@ func healthCheck(attempts int) error {
 	for attempts > 0 {
 		statusCode, err := getHealthCheck(healthPath)
 		if err != nil {
-			return err
+			log.Printf("Integration tests: health check error: %v", err)
+			time.Sleep(time.Second)
+			attempts--
+			continue
 		}
 
 		if statusCode == http.StatusOK {
@@ -88,9 +63,7 @@ func healthCheck(attempts int) error {
 		}
 
 		log.Printf("Integration tests: url %s is not available, attempts left: %d", healthPath, attempts)
-
 		time.Sleep(time.Second)
-
 		attempts--
 	}
 
@@ -109,126 +82,33 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// HTTP POST: /v1/translation/do-translate.
-func TestHTTPDoTranslateV1(t *testing.T) {
-	tests := []struct {
-		description string
-		body        string
-		expected    int
-	}{
-		{
-			description: "DoTranslate Success",
-			body: `{
-				"destination": "en",
-				"original": "текст для перевода",
-				"source": "auto"
-			}`,
-			expected: http.StatusOK,
-		},
-		{
-			description: "DoTranslate Success",
-			body: `{
-				"destination": "en",
-				"original": "Текст для перевода",
-				"source": "ru"
-			}`,
-			expected: http.StatusOK,
-		},
-		{
-			description: "DoTranslate Fail",
-			body: `{
-				"destination": "en",
-				"original": "текст для перевода"
-			}`,
-			expected: http.StatusBadRequest,
-		},
+func TestHealthEndpoint(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
+
+	resp, err := doWebRequestWithTimeout(ctx, http.MethodGet, healthPath, http.NoBody)
+	if err != nil {
+		t.Fatalf("Failed to send request: %v", err)
 	}
+	defer resp.Body.Close()
 
-	for _, tt := range tests {
-		t.Run(tt.description, func(t *testing.T) {
-			url := basePathV1 + "/translation/do-translate"
-			ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-
-			defer cancel()
-
-			resp, err := doWebRequestWithTimeout(ctx, http.MethodPost, url, bytes.NewBuffer([]byte(tt.body)))
-			if err != nil {
-				t.Fatalf("Failed to send request: %v", err)
-			}
-
-			defer resp.Body.Close()
-
-			if resp.StatusCode != tt.expected {
-				t.Errorf("Expected status %d, got %d", tt.expected, resp.StatusCode)
-			}
-		})
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 }
 
-// HTTP GET: /v1/translation/history.
-func TestHTTPHistoryV1(t *testing.T) {
-	url := basePathV1 + "/translation/history"
+func TestGetSkinsEndpoint(t *testing.T) {
+	url := basePathV1 + "/skins"
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-
 	defer cancel()
 
 	resp, err := doWebRequestWithTimeout(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		t.Fatalf("Failed to send request: %v", err)
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
-	}
-
-	var body struct {
-		History []struct {
-			Source      string `json:"source"`
-			Destination string `json:"destination"`
-			Original    string `json:"original"`
-			Translation string `json:"translation"`
-		} `json:"history"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatalf("Failed to decode response body: %v", err)
-	}
-
-	if len(body.History) == 0 {
-		t.Error("Expected non-empty history")
-	}
-}
-
-// gRPC Client V1: GetHistory.
-func TestClientGRPCV1(t *testing.T) {
-	grpcConn, err := grpc.NewClient(grpcURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatal("gRPC Client - init error - grpc.NewClient", err)
-	}
-
-	defer func() {
-		err = grpcConn.Close()
-		if err != nil {
-			t.Fatal("gRPC Client - shutdown error - grpcClientV1.GetHistory", err)
-		}
-	}()
-
-	grpcClientV1 := protov1.NewTranslationClient(grpcConn)
-
-	for i := 0; i < requests; i++ {
-		history, err := grpcClientV1.GetHistory(t.Context(), &protov1.GetHistoryRequest{})
-		if err != nil {
-			t.Fatal("gRPC Client - remote call error - grpcClientV1.GetHistory", err)
-		}
-
-		if len(history.History) == 0 {
-			t.Fatal("History slice is empty, expected at least one entry")
-		}
-
-		if history.History[0].Original != expectedOriginal {
-			t.Fatalf("Original mismatch: expected %q, got %q", expectedOriginal, history.History[0].Original)
-		}
 	}
 }

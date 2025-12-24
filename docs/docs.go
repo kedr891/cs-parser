@@ -692,7 +692,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "data": {
-                    "description": "JSON данные",
+                    "description": "JSON",
                     "type": "object",
                     "additionalProperties": true
                 },

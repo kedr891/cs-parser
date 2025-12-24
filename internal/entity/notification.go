@@ -7,21 +7,19 @@ import (
 	"github.com/google/uuid"
 )
 
-// Notification - модель уведомления
 type Notification struct {
 	ID        uuid.UUID              `json:"id" db:"id"`
 	UserID    uuid.UUID              `json:"user_id" db:"user_id"`
 	Type      NotificationType       `json:"type" db:"type"`
 	Title     string                 `json:"title" db:"title"`
 	Message   string                 `json:"message" db:"message"`
-	Data      map[string]interface{} `json:"data,omitempty" db:"data"` // JSON данные
+	Data      map[string]interface{} `json:"data,omitempty" db:"data"` // JSON
 	IsRead    bool                   `json:"is_read" db:"is_read"`
 	Priority  NotificationPriority   `json:"priority" db:"priority"`
 	CreatedAt time.Time              `json:"created_at" db:"created_at"`
 	ReadAt    *time.Time             `json:"read_at,omitempty" db:"read_at"`
 }
 
-// NotificationType - тип уведомления
 type NotificationType string
 
 const (
@@ -33,7 +31,6 @@ const (
 	TypeWatchlistUpdate NotificationType = "watchlist_update"
 )
 
-// NotificationPriority - приоритет уведомления
 type NotificationPriority string
 
 const (
@@ -43,7 +40,6 @@ const (
 	PriorityUrgent NotificationPriority = "urgent"
 )
 
-// NewNotification - создать уведомление
 func NewNotification(userID uuid.UUID, notifType NotificationType, title, message string) *Notification {
 	return &Notification{
 		ID:        uuid.New(),
@@ -58,7 +54,6 @@ func NewNotification(userID uuid.UUID, notifType NotificationType, title, messag
 	}
 }
 
-// MarkAsRead - пометить как прочитанное
 func (n *Notification) MarkAsRead() {
 	if !n.IsRead {
 		n.IsRead = true
@@ -67,12 +62,10 @@ func (n *Notification) MarkAsRead() {
 	}
 }
 
-// SetPriority - установить приоритет
 func (n *Notification) SetPriority(priority NotificationPriority) {
 	n.Priority = priority
 }
 
-// AddData - добавить данные в уведомление
 func (n *Notification) AddData(key string, value interface{}) {
 	if n.Data == nil {
 		n.Data = make(map[string]interface{})
@@ -80,7 +73,6 @@ func (n *Notification) AddData(key string, value interface{}) {
 	n.Data[key] = value
 }
 
-// PriceAlertNotification - событие уведомления о цене для Kafka
 type PriceAlertNotification struct {
 	UserID           uuid.UUID        `json:"user_id"`
 	SkinID           uuid.UUID        `json:"skin_id"`
@@ -94,7 +86,6 @@ type PriceAlertNotification struct {
 	Timestamp        time.Time        `json:"timestamp"`
 }
 
-// NewPriceAlertNotification - создать событие алерта цены
 func NewPriceAlertNotification(userID, skinID uuid.UUID, marketHashName string, oldPrice, currentPrice float64) *PriceAlertNotification {
 	priceChange := 0.0
 	if oldPrice > 0 {
@@ -118,11 +109,10 @@ func NewPriceAlertNotification(userID, skinID uuid.UUID, marketHashName string, 
 	}
 }
 
-// GenerateMessage - сгенерировать сообщение уведомления
 func (p *PriceAlertNotification) GenerateMessage() (title, message string) {
 	switch p.NotificationType {
 	case TypePriceDrop:
-		title = "Price Drop Alert! 📉"
+		title = "Price Drop Alert!"
 		message = fmt.Sprintf(
 			"%s dropped from $%.2f to $%.2f (%.1f%% down)",
 			p.MarketHashName,
@@ -131,7 +121,7 @@ func (p *PriceAlertNotification) GenerateMessage() (title, message string) {
 			-p.PriceChange,
 		)
 	case TypePriceIncrease:
-		title = "Price Increase Alert! 📈"
+		title = "Price Increase Alert!"
 		message = fmt.Sprintf(
 			"%s increased from $%.2f to $%.2f (%.1f%% up)",
 			p.MarketHashName,
@@ -140,7 +130,7 @@ func (p *PriceAlertNotification) GenerateMessage() (title, message string) {
 			p.PriceChange,
 		)
 	case TypeTargetReached:
-		title = "Target Price Reached! 🎯"
+		title = "Target Price Reached!"
 		message = fmt.Sprintf(
 			"%s reached your target price of $%.2f (current: $%.2f)",
 			p.MarketHashName,
@@ -154,7 +144,6 @@ func (p *PriceAlertNotification) GenerateMessage() (title, message string) {
 	return
 }
 
-// GetPriority - определить приоритет уведомления
 func (p *PriceAlertNotification) GetPriority() NotificationPriority {
 	absChange := p.PriceChange
 	if absChange < 0 {
@@ -173,7 +162,6 @@ func (p *PriceAlertNotification) GetPriority() NotificationPriority {
 	}
 }
 
-// NotificationFilter - фильтр для получения уведомлений
 type NotificationFilter struct {
 	UserID   uuid.UUID
 	Types    []NotificationType
@@ -184,7 +172,6 @@ type NotificationFilter struct {
 	Offset   int
 }
 
-// NewNotificationFilter - создать фильтр по умолчанию
 func NewNotificationFilter(userID uuid.UUID) *NotificationFilter {
 	return &NotificationFilter{
 		UserID: userID,
@@ -193,7 +180,6 @@ func NewNotificationFilter(userID uuid.UUID) *NotificationFilter {
 	}
 }
 
-// NotificationListResponse - ответ со списком уведомлений
 type NotificationListResponse struct {
 	Notifications []Notification `json:"notifications"`
 	Total         int            `json:"total"`
@@ -202,7 +188,6 @@ type NotificationListResponse struct {
 	PageSize      int            `json:"page_size"`
 }
 
-// NotificationStats - статистика уведомлений
 type NotificationStats struct {
 	Total      int                          `json:"total"`
 	Unread     int                          `json:"unread"`
@@ -211,12 +196,10 @@ type NotificationStats struct {
 	Last24h    int                          `json:"last_24h"`
 }
 
-// MarkReadRequest - запрос на пометку как прочитанное
 type MarkReadRequest struct {
 	NotificationIDs []uuid.UUID `json:"notification_ids" binding:"required"`
 }
 
-// NotificationPreferences - настройки уведомлений пользователя
 type NotificationPreferences struct {
 	UserID            uuid.UUID            `json:"user_id" db:"user_id"`
 	EnabledTypes      []NotificationType   `json:"enabled_types" db:"enabled_types"`
@@ -228,7 +211,6 @@ type NotificationPreferences struct {
 	UpdatedAt         time.Time            `json:"updated_at" db:"updated_at"`
 }
 
-// NotificationChannels - каналы уведомлений
 type NotificationChannels struct {
 	Email   bool `json:"email"`
 	Push    bool `json:"push"`
@@ -236,7 +218,6 @@ type NotificationChannels struct {
 	Webhook bool `json:"webhook"`
 }
 
-// NewNotificationPreferences - создать настройки по умолчанию
 func NewNotificationPreferences(userID uuid.UUID) *NotificationPreferences {
 	return &NotificationPreferences{
 		UserID: userID,
@@ -256,7 +237,6 @@ func NewNotificationPreferences(userID uuid.UUID) *NotificationPreferences {
 	}
 }
 
-// IsInQuietHours - находимся ли в тихих часах
 func (p *NotificationPreferences) IsInQuietHours() bool {
 	if !p.QuietHoursEnabled {
 		return false
@@ -265,18 +245,14 @@ func (p *NotificationPreferences) IsInQuietHours() bool {
 	now := time.Now()
 	currentTime := now.Format("15:04")
 
-	// Простая проверка (можно улучшить для перехода через полночь)
 	return currentTime >= p.QuietHoursStart && currentTime < p.QuietHoursEnd
 }
 
-// ShouldSend - нужно ли отправлять уведомление
 func (p *NotificationPreferences) ShouldSend(notifType NotificationType, priceChange float64) bool {
-	// Проверка тихих часов
 	if p.IsInQuietHours() {
 		return false
 	}
 
-	// Проверка включенных типов
 	typeEnabled := false
 	for _, t := range p.EnabledTypes {
 		if t == notifType {
@@ -288,7 +264,6 @@ func (p *NotificationPreferences) ShouldSend(notifType NotificationType, priceCh
 		return false
 	}
 
-	// Проверка минимального изменения цены
 	absChange := priceChange
 	if absChange < 0 {
 		absChange = -absChange

@@ -12,7 +12,6 @@ import (
 	"github.com/kedr891/cs-parser/internal/entity"
 )
 
-// UserService - сервис для работы с пользователями
 type UserService struct {
 	repo      repository.UserRepository
 	cache     domain.CacheStorage
@@ -20,7 +19,6 @@ type UserService struct {
 	log       domain.Logger
 }
 
-// NewUserService - создать сервис пользователей
 func NewUserService(
 	repo repository.UserRepository,
 	cache domain.CacheStorage,
@@ -35,9 +33,7 @@ func NewUserService(
 	}
 }
 
-// Register - регистрация нового пользователя
 func (s *UserService) Register(ctx context.Context, req *entity.RegisterRequest) (*entity.LoginResponse, error) {
-	// Проверить существование пользователя
 	exists, err := s.repo.UserExistsByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("check user existence: %w", err)
@@ -47,24 +43,20 @@ func (s *UserService) Register(ctx context.Context, req *entity.RegisterRequest)
 		return nil, fmt.Errorf("user with this email already exists")
 	}
 
-	// Создать пользователя
 	user, err := entity.NewUser(req.Email, req.Username, req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	// Сохранить в БД
 	if err := s.repo.CreateUser(ctx, user); err != nil {
 		return nil, fmt.Errorf("save user: %w", err)
 	}
 
-	// Создать настройки по умолчанию
 	settings := entity.NewUserSettings(user.ID)
 	if err := s.repo.CreateUserSettings(ctx, settings); err != nil {
 		s.log.Warn("Failed to create user settings", "error", err)
 	}
 
-	// Генерация JWT токена
 	token, err := s.generateJWT(user)
 	if err != nil {
 		return nil, fmt.Errorf("generate token: %w", err)
@@ -76,31 +68,25 @@ func (s *UserService) Register(ctx context.Context, req *entity.RegisterRequest)
 	}, nil
 }
 
-// Login - вход пользователя
 func (s *UserService) Login(ctx context.Context, req *entity.LoginRequest) (*entity.LoginResponse, error) {
-	// Найти пользователя
 	user, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	// Проверить пароль
 	if !user.CheckPassword(req.Password) {
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	// Проверить активность аккаунта
 	if !user.IsActive {
 		return nil, fmt.Errorf("account is disabled")
 	}
 
-	// Обновить время последнего входа
 	user.UpdateLastLogin()
 	if err := s.repo.UpdateLastLogin(ctx, user.ID); err != nil {
 		s.log.Warn("Failed to update last login", "error", err)
 	}
 
-	// Генерация JWT токена
 	token, err := s.generateJWT(user)
 	if err != nil {
 		return nil, fmt.Errorf("generate token: %w", err)
@@ -112,7 +98,6 @@ func (s *UserService) Login(ctx context.Context, req *entity.LoginRequest) (*ent
 	}, nil
 }
 
-// GetProfile - получить профиль пользователя
 func (s *UserService) GetProfile(ctx context.Context, userID uuid.UUID) (*entity.UserResponse, error) {
 	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
@@ -122,14 +107,11 @@ func (s *UserService) GetProfile(ctx context.Context, userID uuid.UUID) (*entity
 	return user.Sanitize(), nil
 }
 
-// GetWatchlist - получить watchlist пользователя
 func (s *UserService) GetWatchlist(ctx context.Context, userID uuid.UUID) ([]entity.WatchlistWithSkin, error) {
 	return s.repo.GetWatchlistWithSkins(ctx, userID)
 }
 
-// AddToWatchlist - добавить скин в watchlist
 func (s *UserService) AddToWatchlist(ctx context.Context, userID, skinID uuid.UUID, targetPrice *float64, notifyOnDrop bool) (*entity.Watchlist, error) {
-	// Проверить, не добавлен ли уже
 	exists, err := s.repo.WatchlistExists(ctx, userID, skinID)
 	if err != nil {
 		return nil, fmt.Errorf("check watchlist: %w", err)
@@ -139,7 +121,6 @@ func (s *UserService) AddToWatchlist(ctx context.Context, userID, skinID uuid.UU
 		return nil, fmt.Errorf("skin already in watchlist")
 	}
 
-	// Создать запись в watchlist
 	watchlist := entity.NewWatchlist(userID, skinID)
 	if targetPrice != nil {
 		watchlist.SetTargetPrice(*targetPrice)
@@ -153,12 +134,10 @@ func (s *UserService) AddToWatchlist(ctx context.Context, userID, skinID uuid.UU
 	return watchlist, nil
 }
 
-// RemoveFromWatchlist - удалить скин из watchlist
 func (s *UserService) RemoveFromWatchlist(ctx context.Context, userID, skinID uuid.UUID) error {
 	return s.repo.DeleteWatchlist(ctx, userID, skinID)
 }
 
-// GetNotifications - получить уведомления пользователя
 func (s *UserService) GetNotifications(ctx context.Context, userID uuid.UUID, unreadOnly bool, limit int) (*entity.NotificationListResponse, error) {
 	notifications, err := s.repo.GetNotifications(ctx, userID, unreadOnly, limit)
 	if err != nil {
@@ -180,17 +159,13 @@ func (s *UserService) GetNotifications(ctx context.Context, userID uuid.UUID, un
 	}, nil
 }
 
-// MarkNotificationsRead - пометить уведомления как прочитанные
 func (s *UserService) MarkNotificationsRead(ctx context.Context, userID uuid.UUID, notificationIDs []uuid.UUID) error {
 	return s.repo.MarkNotificationsRead(ctx, userID, notificationIDs)
 }
 
-// GetUserStats - получить статистику пользователя
 func (s *UserService) GetUserStats(ctx context.Context, userID uuid.UUID) (*entity.UserStats, error) {
 	return s.repo.GetUserStats(ctx, userID)
 }
-
-// Helper methods
 
 func (s *UserService) generateJWT(user *entity.User) (string, error) {
 	claims := jwt.MapClaims{

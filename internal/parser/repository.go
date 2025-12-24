@@ -11,7 +11,6 @@ import (
 	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
-// Repository - интерфейс репозитория для парсера
 type Repository interface {
 	GetAllSkins(ctx context.Context) ([]entity.Skin, error)
 	GetSkinBySlug(ctx context.Context, slug string) (*entity.Skin, error)
@@ -23,13 +22,11 @@ type Repository interface {
 	GetSkinsCount(ctx context.Context) (int, error)
 }
 
-// repository - реализация репозитория
 type repository struct {
 	pg  *postgres.Postgres
 	log *logger.Logger
 }
 
-// NewRepository - создать репозиторий
 func NewRepository(pg *postgres.Postgres, log *logger.Logger) Repository {
 	return &repository{
 		pg:  pg,
@@ -37,7 +34,6 @@ func NewRepository(pg *postgres.Postgres, log *logger.Logger) Repository {
 	}
 }
 
-// GetAllSkins - получить все скины
 func (r *repository) GetAllSkins(ctx context.Context) ([]entity.Skin, error) {
 	query := `
 		SELECT 
@@ -92,7 +88,6 @@ func (r *repository) GetAllSkins(ctx context.Context) ([]entity.Skin, error) {
 	return skins, nil
 }
 
-// GetSkinBySlug - получить скин по slug
 func (r *repository) GetSkinBySlug(ctx context.Context, slug string) (*entity.Skin, error) {
 	query := `
 		SELECT 
@@ -124,7 +119,6 @@ func (r *repository) GetSkinBySlug(ctx context.Context, slug string) (*entity.Sk
 	return &skin, nil
 }
 
-// GetSkinByMarketHashName - получить скин по market_hash_name
 func (r *repository) GetSkinByMarketHashName(ctx context.Context, marketHashName string) (*entity.Skin, error) {
 	query := `
 		SELECT 
@@ -168,7 +162,6 @@ func (r *repository) GetSkinByMarketHashName(ctx context.Context, marketHashName
 	return &skin, nil
 }
 
-// SkinExists - проверить существование скина
 func (r *repository) SkinExists(ctx context.Context, marketHashName string) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM skins WHERE market_hash_name = $1)`
 
@@ -181,7 +174,6 @@ func (r *repository) SkinExists(ctx context.Context, marketHashName string) (boo
 	return exists, nil
 }
 
-// CreateSkin - создать новый скин
 func (r *repository) CreateSkin(ctx context.Context, skin *entity.Skin) error {
 	query := `
 		INSERT INTO skins (
@@ -222,24 +214,19 @@ func (r *repository) CreateSkin(ctx context.Context, skin *entity.Skin) error {
 	return nil
 }
 
-// UpdateSkinPrice - обновить цену скина
 func (r *repository) UpdateSkinPrice(ctx context.Context, skinID uuid.UUID, price float64, volume int) error {
-	// Используем транзакцию для атомарного обновления
 	return r.pg.Transaction(ctx, func(tx pgx.Tx) error {
-		// Получить старую цену для расчёта изменений
 		var oldPrice float64
 		err := tx.QueryRow(ctx, `SELECT current_price FROM skins WHERE id = $1`, skinID).Scan(&oldPrice)
 		if err != nil {
 			return fmt.Errorf("get old price: %w", err)
 		}
 
-		// Рассчитать изменение цены
 		priceChange := 0.0
 		if oldPrice > 0 {
 			priceChange = ((price - oldPrice) / oldPrice) * 100
 		}
 
-		// Обновить скин
 		query := `
 			UPDATE skins
 			SET 
@@ -264,7 +251,6 @@ func (r *repository) UpdateSkinPrice(ctx context.Context, skinID uuid.UUID, pric
 			return fmt.Errorf("update skin: %w", err)
 		}
 
-		// Сохранить историю цены
 		historyQuery := `
 			INSERT INTO price_history (skin_id, price, source, volume, recorded_at)
 			VALUES ($1, $2, $3, $4, NOW())
@@ -279,7 +265,6 @@ func (r *repository) UpdateSkinPrice(ctx context.Context, skinID uuid.UUID, pric
 	})
 }
 
-// SavePriceHistory - сохранить запись истории цены
 func (r *repository) SavePriceHistory(ctx context.Context, history *entity.PriceHistory) error {
 	query := `
 		INSERT INTO price_history (skin_id, price, currency, source, volume, recorded_at)
@@ -302,7 +287,6 @@ func (r *repository) SavePriceHistory(ctx context.Context, history *entity.Price
 	return nil
 }
 
-// GetSkinsCount - получить количество скинов
 func (r *repository) GetSkinsCount(ctx context.Context) (int, error) {
 	var count int
 	err := r.pg.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM skins`).Scan(&count)

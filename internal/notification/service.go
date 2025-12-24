@@ -10,14 +10,12 @@ import (
 	"github.com/kedr891/cs-parser/internal/entity"
 )
 
-// Service - сервис уведомлений
 type Service struct {
 	repo  Repository
 	cache domain.CacheStorage
 	log   domain.Logger
 }
 
-// NewService - создать сервис уведомлений
 func NewService(
 	repo Repository,
 	cache domain.CacheStorage,
@@ -30,7 +28,6 @@ func NewService(
 	}
 }
 
-// CreateNotification - создать уведомление
 func (s *Service) CreateNotification(ctx context.Context, notification *entity.Notification) error {
 	if err := s.repo.CreateNotification(ctx, notification); err != nil {
 		return fmt.Errorf("create notification: %w", err)
@@ -45,11 +42,9 @@ func (s *Service) CreateNotification(ctx context.Context, notification *entity.N
 	return nil
 }
 
-// SendNotification - отправить уведомление через активные каналы
 func (s *Service) SendNotification(ctx context.Context, notification *entity.Notification, preferences *entity.NotificationPreferences) error {
 	var errors []error
 
-	// Email уведомление
 	if preferences.Channels.Email {
 		if err := s.sendEmail(ctx, notification); err != nil {
 			s.log.Error("Failed to send email", "error", err)
@@ -57,7 +52,6 @@ func (s *Service) SendNotification(ctx context.Context, notification *entity.Not
 		}
 	}
 
-	// Push уведомление
 	if preferences.Channels.Push {
 		if err := s.sendPush(ctx, notification); err != nil {
 			s.log.Error("Failed to send push", "error", err)
@@ -65,15 +59,12 @@ func (s *Service) SendNotification(ctx context.Context, notification *entity.Not
 		}
 	}
 
-	// Webhook уведомление
 	if preferences.Channels.Webhook {
 		if err := s.sendWebhook(ctx, notification); err != nil {
 			s.log.Error("Failed to send webhook", "error", err)
 			errors = append(errors, err)
 		}
 	}
-
-	// In-app уведомление уже сохранено в БД, ничего дополнительно не нужно
 
 	if len(errors) > 0 {
 		return fmt.Errorf("failed to send notification through %d channels", len(errors))
@@ -82,7 +73,6 @@ func (s *Service) SendNotification(ctx context.Context, notification *entity.Not
 	return nil
 }
 
-// sendEmail - отправить email уведомление
 func (s *Service) sendEmail(ctx context.Context, notification *entity.Notification) error {
 	// TODO: Реализовать интеграцию с email сервисом (SendGrid, AWS SES, etc.)
 	s.log.Info("Email notification would be sent",
@@ -93,7 +83,6 @@ func (s *Service) sendEmail(ctx context.Context, notification *entity.Notificati
 	return nil
 }
 
-// sendPush - отправить push уведомление
 func (s *Service) sendPush(ctx context.Context, notification *entity.Notification) error {
 	// TODO: Реализовать интеграцию с push сервисом (Firebase, OneSignal, etc.)
 	s.log.Info("Push notification would be sent",
@@ -104,7 +93,6 @@ func (s *Service) sendPush(ctx context.Context, notification *entity.Notificatio
 	return nil
 }
 
-// sendWebhook - отправить webhook уведомление
 func (s *Service) sendWebhook(ctx context.Context, notification *entity.Notification) error {
 	// TODO: Реализовать отправку webhook'а на URL пользователя
 	s.log.Info("Webhook notification would be sent",
@@ -115,7 +103,6 @@ func (s *Service) sendWebhook(ctx context.Context, notification *entity.Notifica
 	return nil
 }
 
-// GetUserPreferences - получить настройки уведомлений пользователя
 func (s *Service) GetUserPreferences(ctx context.Context, userID uuid.UUID) (*entity.NotificationPreferences, error) {
 	preferences, err := s.repo.GetNotificationPreferences(ctx, userID)
 	if err != nil {
@@ -124,27 +111,23 @@ func (s *Service) GetUserPreferences(ctx context.Context, userID uuid.UUID) (*en
 	return preferences, nil
 }
 
-// WasAlertSent - проверить, был ли уже отправлен алерт
 func (s *Service) WasAlertSent(ctx context.Context, userID, skinID uuid.UUID) (bool, error) {
 	key := fmt.Sprintf("alerts:sent:%s:%s", userID.String(), skinID.String())
 
 	_, err := s.cache.Get(ctx, key)
 	if err != nil {
-		return false, nil // алерт не отправлялся
+		return false, nil
 	}
 
-	return true, nil // алерт уже отправлялся
+	return true, nil
 }
 
-// TrackAlertSent - отметить, что алерт отправлен
 func (s *Service) TrackAlertSent(ctx context.Context, userID, skinID uuid.UUID) error {
 	key := fmt.Sprintf("alerts:sent:%s:%s", userID.String(), skinID.String())
 
-	// Сохраняем на 1 час, чтобы не отправлять алерт повторно
 	return s.cache.Set(ctx, key, "1", time.Hour)
 }
 
-// GetNotifications - получить уведомления пользователя
 func (s *Service) GetNotifications(ctx context.Context, filter *entity.NotificationFilter) ([]entity.Notification, error) {
 	notifications, err := s.repo.GetNotifications(ctx, filter)
 	if err != nil {
@@ -153,7 +136,6 @@ func (s *Service) GetNotifications(ctx context.Context, filter *entity.Notificat
 	return notifications, nil
 }
 
-// MarkAsRead - пометить уведомления как прочитанные
 func (s *Service) MarkAsRead(ctx context.Context, userID uuid.UUID, notificationIDs []uuid.UUID) error {
 	if err := s.repo.MarkNotificationsAsRead(ctx, userID, notificationIDs); err != nil {
 		return fmt.Errorf("mark as read: %w", err)
@@ -161,7 +143,6 @@ func (s *Service) MarkAsRead(ctx context.Context, userID uuid.UUID, notification
 	return nil
 }
 
-// GetUnreadCount - получить количество непрочитанных уведомлений
 func (s *Service) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	count, err := s.repo.GetUnreadCount(ctx, userID)
 	if err != nil {
@@ -170,7 +151,6 @@ func (s *Service) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, er
 	return count, nil
 }
 
-// DeleteOldNotifications - удалить старые уведомления (cleanup task)
 func (s *Service) DeleteOldNotifications(ctx context.Context, olderThan time.Duration) error {
 	cutoff := time.Now().Add(-olderThan)
 
@@ -183,7 +163,6 @@ func (s *Service) DeleteOldNotifications(ctx context.Context, olderThan time.Dur
 	return nil
 }
 
-// GetStats - получить статистику уведомлений
 func (s *Service) GetStats(ctx context.Context, userID uuid.UUID) (*entity.NotificationStats, error) {
 	stats, err := s.repo.GetNotificationStats(ctx, userID)
 	if err != nil {

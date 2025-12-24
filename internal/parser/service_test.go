@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockSkinRepository - mock репозитория
 type MockSkinRepository struct {
 	mock.Mock
 }
@@ -72,7 +71,6 @@ func (m *MockSkinRepository) GetSkinsCount(ctx context.Context) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
-// MockMarketClient - mock маркет клиента
 type MockMarketClient struct {
 	mock.Mock
 }
@@ -90,7 +88,6 @@ func (m *MockMarketClient) SearchItems(ctx context.Context, query string) ([]dom
 	return args.Get(0).([]domain.MarketItem), args.Error(1)
 }
 
-// MockCacheStorage - mock кэша
 type MockCacheStorage struct {
 	mock.Mock
 }
@@ -120,7 +117,6 @@ func (m *MockCacheStorage) GetRateLimit(ctx context.Context, key string) (int64,
 	return args.Get(0).(int64), args.Error(1)
 }
 
-// Методы для sorted sets (если есть в domain.CacheStorage)
 func (m *MockCacheStorage) ZAdd(ctx context.Context, key string, score float64, member string) error {
 	args := m.Called(ctx, key, score, member)
 	return args.Error(0)
@@ -141,7 +137,6 @@ func (m *MockCacheStorage) ZRevRangeWithScores(ctx context.Context, key string, 
 	return args.Get(0).([]domain.ZMember), args.Error(1)
 }
 
-// Методы для hash (если есть)
 func (m *MockCacheStorage) HSet(ctx context.Context, key, field string, value interface{}) error {
 	args := m.Called(ctx, key, field, value)
 	return args.Error(0)
@@ -157,7 +152,6 @@ func (m *MockCacheStorage) HGetAll(ctx context.Context, key string) (map[string]
 	return args.Get(0).(map[string]string), args.Error(1)
 }
 
-// Методы для JSON (если есть)
 func (m *MockCacheStorage) SetJSON(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
 	args := m.Called(ctx, key, value, ttl)
 	return args.Error(0)
@@ -178,7 +172,6 @@ func (m *MockCacheStorage) Increment(ctx context.Context, key string) (int64, er
 	return args.Get(0).(int64), args.Error(1)
 }
 
-// MockMessageProducer - mock Kafka producer
 type MockMessageProducer struct {
 	mock.Mock
 }
@@ -193,7 +186,6 @@ func (m *MockMessageProducer) Close() error {
 	return args.Error(0)
 }
 
-// MockLogger - mock логгера
 type MockLogger struct {
 	mock.Mock
 }
@@ -219,7 +211,6 @@ func (m *MockLogger) Fatal(msg string, args ...interface{}) {
 }
 
 func TestService_ParseAllSkins_Success(t *testing.T) {
-	// Arrange
 	ctx := context.Background()
 	mockRepo := new(MockSkinRepository)
 	mockClient := new(MockMarketClient)
@@ -246,7 +237,6 @@ func TestService_ParseAllSkins_Success(t *testing.T) {
 		Volume: 1397,
 	}
 
-	// Setup expectations
 	mockRepo.On("GetAllSkins", ctx).Return(testSkins, nil)
 	mockCache.On("IncrementRateLimit", ctx, mock.Anything, mock.Anything).Return(int64(1), nil)
 	mockClient.On("GetItemPrice", ctx, testSkins[0].MarketHashName).Return(priceData, nil)
@@ -265,10 +255,7 @@ func TestService_ParseAllSkins_Success(t *testing.T) {
 		mockLogger,
 	)
 
-	// Act
 	err := service.ParseAllSkins(ctx)
-
-	// Assert
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
@@ -277,7 +264,6 @@ func TestService_ParseAllSkins_Success(t *testing.T) {
 }
 
 func TestService_ParseAllSkins_NoSkins(t *testing.T) {
-	// Arrange
 	ctx := context.Background()
 	mockRepo := new(MockSkinRepository)
 	mockClient := new(MockMarketClient)
@@ -299,16 +285,13 @@ func TestService_ParseAllSkins_NoSkins(t *testing.T) {
 		mockLogger,
 	)
 
-	// Act
 	err := service.ParseAllSkins(ctx)
 
-	// Assert
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 }
 
 func TestService_ParseAllSkins_RepositoryError(t *testing.T) {
-	// Arrange
 	ctx := context.Background()
 	mockRepo := new(MockSkinRepository)
 	mockClient := new(MockMarketClient)
@@ -330,17 +313,14 @@ func TestService_ParseAllSkins_RepositoryError(t *testing.T) {
 		mockLogger,
 	)
 
-	// Act
 	err := service.ParseAllSkins(ctx)
 
-	// Assert
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "get all skins")
 	mockRepo.AssertExpectations(t)
 }
 
 func TestService_DiscoverNewSkins_Success(t *testing.T) {
-	// Arrange
 	ctx := context.Background()
 	mockRepo := new(MockSkinRepository)
 	mockClient := new(MockMarketClient)
@@ -377,10 +357,8 @@ func TestService_DiscoverNewSkins_Success(t *testing.T) {
 		mockLogger,
 	)
 
-	// Act
 	err := service.DiscoverNewSkins(ctx, searchQuery)
 
-	// Assert
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
 	mockRepo.AssertExpectations(t)
@@ -388,7 +366,6 @@ func TestService_DiscoverNewSkins_Success(t *testing.T) {
 }
 
 func TestService_DiscoverNewSkins_AlreadyExists(t *testing.T) {
-	// Arrange
 	ctx := context.Background()
 	mockRepo := new(MockSkinRepository)
 	mockClient := new(MockMarketClient)
@@ -420,20 +397,16 @@ func TestService_DiscoverNewSkins_AlreadyExists(t *testing.T) {
 		mockLogger,
 	)
 
-	// Act
 	err := service.DiscoverNewSkins(ctx, searchQuery)
 
-	// Assert
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
 	mockRepo.AssertExpectations(t)
-	// Не должно быть вызовов CreateSkin и WriteMessage
 	mockRepo.AssertNotCalled(t, "CreateSkin", mock.Anything, mock.Anything)
 	mockDiscoveryProducer.AssertNotCalled(t, "WriteMessage", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestService_GetStats_Success(t *testing.T) {
-	// Arrange
 	ctx := context.Background()
 	mockRepo := new(MockSkinRepository)
 	mockClient := new(MockMarketClient)
@@ -457,10 +430,8 @@ func TestService_GetStats_Success(t *testing.T) {
 		mockLogger,
 	)
 
-	// Act
 	stats, err := service.GetStats(ctx)
 
-	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, stats)
 	assert.Equal(t, expectedCount, stats.TotalSkins)
@@ -470,7 +441,6 @@ func TestService_GetStats_Success(t *testing.T) {
 }
 
 func TestService_RateLimit(t *testing.T) {
-	// Arrange
 	ctx := context.Background()
 	mockRepo := new(MockSkinRepository)
 	mockClient := new(MockMarketClient)
@@ -486,7 +456,6 @@ func TestService_RateLimit(t *testing.T) {
 		CurrentPrice:   1.00,
 	}
 
-	// Simulate rate limit exceeded
 	mockRepo.On("GetAllSkins", ctx).Return([]entity.Skin{testSkin}, nil)
 	mockCache.On("IncrementRateLimit", ctx, mock.Anything, mock.Anything).Return(int64(61), nil)
 	mockLogger.On("Info", mock.Anything, mock.Anything).Return()
@@ -501,11 +470,9 @@ func TestService_RateLimit(t *testing.T) {
 		mockLogger,
 	)
 
-	// Act
 	err := service.ParseAllSkins(ctx)
 
-	// Assert
-	assert.NoError(t, err) // ParseAllSkins не возвращает ошибку, только логирует
+	assert.NoError(t, err)
 	mockCache.AssertExpectations(t)
 }
 
@@ -518,7 +485,6 @@ func BenchmarkService_ParseAllSkins(b *testing.B) {
 	mockCache := new(MockCacheStorage)
 	mockLogger := new(MockLogger)
 
-	// Create test data
 	skins := make([]entity.Skin, 100)
 	for i := 0; i < 100; i++ {
 		skins[i] = entity.Skin{

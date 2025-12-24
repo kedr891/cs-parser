@@ -1,14 +1,11 @@
--- Drop triggers
 DROP TRIGGER IF EXISTS update_skins_updated_at ON skins;
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 DROP TRIGGER IF EXISTS update_watchlist_updated_at ON watchlist;
 DROP TRIGGER IF EXISTS update_user_settings_updated_at ON user_settings;
 DROP TRIGGER IF EXISTS update_notification_preferences_updated_at ON notification_preferences;
 
--- Drop function
 DROP FUNCTION IF EXISTS update_updated_at_column();
 
--- Drop indexes
 DROP INDEX IF EXISTS idx_skins_weapon;
 DROP INDEX IF EXISTS idx_skins_quality;
 DROP INDEX IF EXISTS idx_skins_current_price;
@@ -32,7 +29,6 @@ DROP INDEX IF EXISTS idx_notifications_created_at;
 DROP INDEX IF EXISTS idx_notifications_is_read;
 DROP INDEX IF EXISTS idx_notifications_user_unread;
 
--- Drop tables (in reverse order due to foreign keys)
 DROP TABLE IF EXISTS notification_preferences;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS watchlist;

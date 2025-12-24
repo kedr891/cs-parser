@@ -7,12 +7,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// User - модель пользователя
 type User struct {
 	ID           uuid.UUID  `json:"id" db:"id"`
 	Email        string     `json:"email" db:"email"`
 	Username     string     `json:"username" db:"username"`
-	PasswordHash string     `json:"-" db:"password_hash"` // не отдаём в JSON
+	PasswordHash string     `json:"-" db:"password_hash"`
 	Role         UserRole   `json:"role" db:"role"`
 	IsActive     bool       `json:"is_active" db:"is_active"`
 	IsVerified   bool       `json:"is_verified" db:"is_verified"`
@@ -21,7 +20,6 @@ type User struct {
 	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
 }
 
-// UserRole - роль пользователя
 type UserRole string
 
 const (
@@ -29,7 +27,6 @@ const (
 	RoleAdmin UserRole = "admin"
 )
 
-// NewUser - создать нового пользователя
 func NewUser(email, username, password string) (*User, error) {
 	passwordHash, err := HashPassword(password)
 	if err != nil {
@@ -50,7 +47,6 @@ func NewUser(email, username, password string) (*User, error) {
 	}, nil
 }
 
-// HashPassword - захешировать пароль
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -59,25 +55,21 @@ func HashPassword(password string) (string, error) {
 	return string(bytes), nil
 }
 
-// CheckPassword - проверить пароль
 func (u *User) CheckPassword(password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
 	return err == nil
 }
 
-// UpdateLastLogin - обновить время последнего входа
 func (u *User) UpdateLastLogin() {
 	now := time.Now()
 	u.LastLoginAt = &now
 	u.UpdatedAt = now
 }
 
-// IsAdmin - является ли пользователь администратором
 func (u *User) IsAdmin() bool {
 	return u.Role == RoleAdmin
 }
 
-// Sanitize - убрать чувствительные данные перед отправкой
 func (u *User) Sanitize() *UserResponse {
 	return &UserResponse{
 		ID:          u.ID,
@@ -91,7 +83,6 @@ func (u *User) Sanitize() *UserResponse {
 	}
 }
 
-// UserResponse - безопасный ответ с данными пользователя
 type UserResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Email       string     `json:"email"`
@@ -103,7 +94,6 @@ type UserResponse struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
-// Watchlist - отслеживаемый скин
 type Watchlist struct {
 	ID            uuid.UUID `json:"id" db:"id"`
 	UserID        uuid.UUID `json:"user_id" db:"user_id"`
@@ -116,7 +106,6 @@ type Watchlist struct {
 	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// NewWatchlist - создать запись в watchlist
 func NewWatchlist(userID, skinID uuid.UUID) *Watchlist {
 	now := time.Now()
 	return &Watchlist{
@@ -130,25 +119,21 @@ func NewWatchlist(userID, skinID uuid.UUID) *Watchlist {
 	}
 }
 
-// SetTargetPrice - установить целевую цену
 func (w *Watchlist) SetTargetPrice(price float64) {
 	w.TargetPrice = &price
 	w.NotifyOnPrice = true
 	w.UpdatedAt = time.Now()
 }
 
-// ShouldNotify - нужно ли отправлять уведомление
 func (w *Watchlist) ShouldNotify(currentPrice, oldPrice float64) bool {
 	if !w.IsActive {
 		return false
 	}
 
-	// Уведомление при падении цены
 	if w.NotifyOnDrop && currentPrice < oldPrice {
 		return true
 	}
 
-	// Уведомление при достижении целевой цены
 	if w.NotifyOnPrice && w.TargetPrice != nil && currentPrice <= *w.TargetPrice {
 		return true
 	}
@@ -156,24 +141,21 @@ func (w *Watchlist) ShouldNotify(currentPrice, oldPrice float64) bool {
 	return false
 }
 
-// WatchlistWithSkin - watchlist с данными скина
 type WatchlistWithSkin struct {
 	Watchlist
 	Skin Skin `json:"skin"`
 }
 
-// UserSettings - настройки пользователя
 type UserSettings struct {
 	UserID                uuid.UUID `json:"user_id" db:"user_id"`
 	EmailNotifications    bool      `json:"email_notifications" db:"email_notifications"`
 	PushNotifications     bool      `json:"push_notifications" db:"push_notifications"`
-	PriceAlertThreshold   float64   `json:"price_alert_threshold" db:"price_alert_threshold"` // % изменения цены
+	PriceAlertThreshold   float64   `json:"price_alert_threshold" db:"price_alert_threshold"`
 	PreferredCurrency     string    `json:"preferred_currency" db:"preferred_currency"`
-	NotificationFrequency string    `json:"notification_frequency" db:"notification_frequency"` // instant, hourly, daily
+	NotificationFrequency string    `json:"notification_frequency" db:"notification_frequency"`
 	UpdatedAt             time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// NewUserSettings - создать настройки по умолчанию
 func NewUserSettings(userID uuid.UUID) *UserSettings {
 	return &UserSettings{
 		UserID:                userID,
@@ -186,38 +168,32 @@ func NewUserSettings(userID uuid.UUID) *UserSettings {
 	}
 }
 
-// RegisterRequest - запрос на регистрацию
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Username string `json:"username" binding:"required,min=3,max=50"`
 	Password string `json:"password" binding:"required,min=8"`
 }
 
-// LoginRequest - запрос на вход
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
-// LoginResponse - ответ при входе
 type LoginResponse struct {
 	User  *UserResponse `json:"user"`
 	Token string        `json:"token"`
 }
 
-// UpdateProfileRequest - запрос на обновление профиля
 type UpdateProfileRequest struct {
 	Username string `json:"username" binding:"omitempty,min=3,max=50"`
 	Email    string `json:"email" binding:"omitempty,email"`
 }
 
-// ChangePasswordRequest - запрос на смену пароля
 type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
-// UserStats - статистика пользователя
 type UserStats struct {
 	TotalWatchlist      int       `json:"total_watchlist"`
 	ActiveAlerts        int       `json:"active_alerts"`

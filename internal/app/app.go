@@ -1,135 +1,136 @@
-// Package app configures and runs the application.
 package app
 
 import (
 	"context"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+	"fmt"
 
-	"github.com/gin-gonic/gin"
 	"github.com/kedr891/cs-parser/config"
-	"github.com/kedr891/cs-parser/internal/api"
-	"github.com/kedr891/cs-parser/internal/api/handler"
-	"github.com/kedr891/cs-parser/internal/api/middleware"
-	apiRepo "github.com/kedr891/cs-parser/internal/api/repository"
-	"github.com/kedr891/cs-parser/internal/api/router"
-	"github.com/kedr891/cs-parser/internal/api/service"
-	"github.com/kedr891/cs-parser/pkg/logger"
-	"github.com/kedr891/cs-parser/pkg/postgres"
-	"github.com/kedr891/cs-parser/pkg/redis"
+	"github.com/kedr891/cs-parser/internal/bootstrap"
+	"github.com/kedr891/cs-parser/internal/parser"
 )
 
-// Run initializes and starts the API application.
-func Run(cfg *config.Config) {
-	// Initialize logger
-	log := logger.New(cfg.Log.Level)
-	log.Info("Starting CS2 Skin Tracker API", "version", cfg.App.Version)
-
-	// Initialize PostgreSQL
-	log.Info("Connecting to PostgreSQL...")
-	pg, err := postgres.New(cfg.PG.URL, postgres.MaxPoolSize(cfg.PG.PoolMax))
+func RunAPI(ctx context.Context, cfg *config.Config) error {
+	storage, err := bootstrap.InitPGStorage(ctx, cfg)
 	if err != nil {
-		log.Fatal("Failed to connect to PostgreSQL", "error", err)
+		return fmt.Errorf("init storage: %w", err)
 	}
-	defer pg.Close()
-	log.Info("PostgreSQL connected successfully")
+	defer storage.Close()
 
-	// Initialize Redis
-	log.Info("Connecting to Redis...")
-	rdb, err := redis.New(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
+	cache, err := bootstrap.InitCache(cfg)
 	if err != nil {
-		log.Fatal("Failed to connect to Redis", "error", err)
+		return fmt.Errorf("init cache: %w", err)
 	}
-	defer rdb.Close()
-	log.Info("Redis connected successfully")
+	defer cache.Close()
 
-	// Initialize adapters
-	redisAdapter := api.NewRedisAdapter(rdb)
-	logAdapter := api.NewLoggerAdapter(log)
+	logger := bootstrap.InitLogger(cfg)
+	logger.Info("Starting CS2 Skin Tracker API", "version", cfg.App.Version)
 
-	// Initialize repositories
-	skinRepo := apiRepo.NewSkinRepository(pg)
-	userRepo := apiRepo.NewUserRepository(pg)
-	analyticsRepo := apiRepo.NewAnalyticsRepository(pg)
+	api := bootstrap.InitAPI(storage, cache, cfg, logger)
+	server := bootstrap.InitHTTPServer(cfg, api, logger)
 
-	// Initialize services with interfaces
-	skinService := service.NewSkinService(skinRepo, redisAdapter, logAdapter)
-	userService := service.NewUserService(userRepo, redisAdapter, cfg.JWT.Secret, logAdapter)
-	analyticsService := service.NewAnalyticsService(analyticsRepo, redisAdapter, logAdapter)
+	return bootstrap.RunHTTPServer(ctx, server, logger)
+}
 
-	// Initialize handlers with services
-	skinHandler := handler.NewSkinHandler(skinService, logAdapter)
-	userHandler := handler.NewUserHandler(userService, logAdapter)
-	analyticsHandler := handler.NewAnalyticsHandler(analyticsService, logAdapter)
-
-	// Set Gin mode
-	if cfg.Log.Level == "debug" {
-		gin.SetMode(gin.DebugMode)
-	} else {
-		gin.SetMode(gin.ReleaseMode)
+func RunPriceConsumer(ctx context.Context, cfg *config.Config) error {
+	storage, err := bootstrap.InitPGStorage(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("init storage: %w", err)
 	}
+	defer storage.Close()
 
-	// Create Gin engine
-	engine := gin.New()
-
-	// Global middleware
-	engine.Use(gin.Recovery())
-	engine.Use(middleware.Logger(log))
-	engine.Use(middleware.CORS())
-
-	// Initialize auth middleware
-	authMiddleware := middleware.NewAuthMiddleware(cfg.JWT.Secret, log)
-
-	// Setup routes
-	router.SetupRoutes(engine, skinHandler, userHandler, analyticsHandler, authMiddleware)
-
-	// Health check
-	engine.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "ok",
-			"service": cfg.App.Name,
-			"version": cfg.App.Version,
-		})
-	})
-
-	// Create HTTP server with proper configuration
-	addr := ":" + cfg.HTTP.Port
-	srv := &http.Server{
-		Addr:           addr,
-		Handler:        engine,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 20, // 1 MB
+	cache, err := bootstrap.InitCache(cfg)
+	if err != nil {
+		return fmt.Errorf("init cache: %w", err)
 	}
+	defer cache.Close()
 
-	// Start server in goroutine
-	go func() {
-		log.Info("Starting HTTP server", "addr", addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Failed to start server", "error", err)
+	logger := bootstrap.InitLogger(cfg)
+	logger.Info("Starting CS2 Price Consumer Service", "version", cfg.App.Version)
+
+	kafkaConsumer := bootstrap.InitKafkaConsumer(cfg, cfg.Kafka.TopicPriceUpdated, cfg.Kafka.GroupPriceConsumer)
+	defer kafkaConsumer.Close()
+
+	alertProducer, err := bootstrap.InitKafkaProducer(cfg, cfg.Kafka.TopicPriceAlert)
+	if err != nil {
+		return fmt.Errorf("init alert producer: %w", err)
+	}
+	defer alertProducer.Close()
+
+	priceConsumer := bootstrap.InitPriceConsumer(storage, cache, kafkaConsumer, alertProducer, logger)
+
+	return bootstrap.RunConsumer(ctx, priceConsumer, logger)
+}
+
+func RunParser(ctx context.Context, cfg *config.Config) error {
+	logger := bootstrap.InitLogger(cfg)
+	logger.Info("Starting CS2 Skin Parser Service", "version", cfg.App.Version)
+
+	var repository parser.Repository
+	var closeStorage func()
+
+	if cfg.IsShardingEnabled() {
+		logger.Info("Sharding is ENABLED", "shards_count", len(cfg.Shard.URLs))
+		shardManager, err := bootstrap.InitShardManager(cfg)
+		if err != nil {
+			return fmt.Errorf("init shard manager: %w", err)
 		}
-	}()
-
-	log.Info("API server started successfully", "addr", addr)
-
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	sig := <-quit
-	log.Info("Received shutdown signal", "signal", sig.String())
-
-	// Graceful shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	log.Info("Shutting down API server...")
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Error("Server forced to shutdown", "error", err)
+		closeStorage = func() { shardManager.Close() }
+		repository = bootstrap.InitShardedParserRepository(shardManager, logger)
+		logger.Info("ShardManager initialized successfully", "shards", shardManager.ShardsCount())
+	} else {
+		logger.Info("Sharding is DISABLED, using single PostgreSQL instance")
+		pg, err := bootstrap.InitPGStorage(ctx, cfg)
+		if err != nil {
+			return fmt.Errorf("init storage: %w", err)
+		}
+		closeStorage = func() { pg.Close() }
+		repository = bootstrap.InitParserRepository(pg, logger)
 	}
+	defer closeStorage()
 
-	log.Info("API server stopped successfully")
+	cache, err := bootstrap.InitCache(cfg)
+	if err != nil {
+		return fmt.Errorf("init cache: %w", err)
+	}
+	defer cache.Close()
+
+	priceProducer, err := bootstrap.InitKafkaProducer(cfg, cfg.Kafka.TopicPriceUpdated)
+	if err != nil {
+		return fmt.Errorf("init price producer: %w", err)
+	}
+	defer priceProducer.Close()
+
+	discoveryProducer, err := bootstrap.InitKafkaProducer(cfg, cfg.Kafka.TopicSkinDiscovered)
+	if err != nil {
+		return fmt.Errorf("init discovery producer: %w", err)
+	}
+	defer discoveryProducer.Close()
+
+	scheduler := bootstrap.InitParserScheduler(repository, cache, priceProducer, discoveryProducer, cfg, logger)
+
+	return bootstrap.RunScheduler(ctx, scheduler, logger)
+}
+
+func RunNotification(ctx context.Context, cfg *config.Config) error {
+	storage, err := bootstrap.InitPGStorage(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("init storage: %w", err)
+	}
+	defer storage.Close()
+
+	cache, err := bootstrap.InitCache(cfg)
+	if err != nil {
+		return fmt.Errorf("init cache: %w", err)
+	}
+	defer cache.Close()
+
+	logger := bootstrap.InitLogger(cfg)
+	logger.Info("Starting CS2 Notification Service", "version", cfg.App.Version)
+
+	kafkaConsumer := bootstrap.InitKafkaConsumer(cfg, cfg.Kafka.TopicPriceAlert, cfg.Kafka.GroupNotification)
+	defer kafkaConsumer.Close()
+
+	notificationConsumer := bootstrap.InitNotificationConsumer(storage, cache, kafkaConsumer, logger)
+
+	return bootstrap.RunConsumer(ctx, notificationConsumer, logger)
 }

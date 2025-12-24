@@ -58,7 +58,7 @@ definitions:
         type: string
       data:
         additionalProperties: true
-        description: JSON данные
+        description: JSON
         type: object
       id:
         type: string

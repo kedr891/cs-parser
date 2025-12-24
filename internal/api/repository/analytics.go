@@ -9,12 +9,9 @@ import (
 	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
-// AnalyticsRepository - интерфейс репозитория аналитики
 type AnalyticsRepository interface {
-	// Trending
 	GetTrendingSkins(ctx context.Context, period string, limit int) ([]entity.Skin, error)
 
-	// Market Overview
 	GetTotalSkinsCount(ctx context.Context) (int, error)
 	GetAveragePrice(ctx context.Context) (float64, error)
 	GetTotalVolume24h(ctx context.Context) (int, error)
@@ -23,25 +20,20 @@ type AnalyticsRepository interface {
 	GetMostPopularSkins(ctx context.Context, limit int) ([]entity.Skin, error)
 	GetRecentlyUpdatedSkins(ctx context.Context, limit int) ([]entity.Skin, error)
 
-	// Price Statistics
 	GetPriceStatsByPeriod(ctx context.Context, skinID uuid.UUID, period entity.PriceStatsPeriod) (*entity.SkinStatistics, error)
 }
 
-// analyticsRepository - реализация репозитория
 type analyticsRepository struct {
 	pg *postgres.Postgres
 }
 
-// NewAnalyticsRepository - создать репозиторий аналитики
 func NewAnalyticsRepository(pg *postgres.Postgres) AnalyticsRepository {
 	return &analyticsRepository{
 		pg: pg,
 	}
 }
 
-// GetTrendingSkins - получить трендовые скины
 func (r *analyticsRepository) GetTrendingSkins(ctx context.Context, period string, limit int) ([]entity.Skin, error) {
-	// Определить поле для сортировки по периоду
 	sortField := "price_change_24h"
 	if period == "7d" {
 		sortField = "price_change_7d"
@@ -85,28 +77,24 @@ func (r *analyticsRepository) GetTrendingSkins(ctx context.Context, period strin
 	return skins, nil
 }
 
-// GetTotalSkinsCount - получить общее количество скинов
 func (r *analyticsRepository) GetTotalSkinsCount(ctx context.Context) (int, error) {
 	var count int
 	err := r.pg.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM skins`).Scan(&count)
 	return count, err
 }
 
-// GetAveragePrice - получить среднюю цену всех скинов
 func (r *analyticsRepository) GetAveragePrice(ctx context.Context) (float64, error) {
 	var avg float64
 	err := r.pg.Pool.QueryRow(ctx, `SELECT COALESCE(AVG(current_price), 0) FROM skins WHERE current_price > 0`).Scan(&avg)
 	return avg, err
 }
 
-// GetTotalVolume24h - получить общий объём торгов за 24ч
 func (r *analyticsRepository) GetTotalVolume24h(ctx context.Context) (int, error) {
 	var volume int
 	err := r.pg.Pool.QueryRow(ctx, `SELECT COALESCE(SUM(volume_24h), 0) FROM skins`).Scan(&volume)
 	return volume, err
 }
 
-// GetTopGainers - получить топ растущих скинов
 func (r *analyticsRepository) GetTopGainers(ctx context.Context, limit int) ([]entity.Skin, error) {
 	query := `
 		SELECT 
@@ -130,7 +118,6 @@ func (r *analyticsRepository) GetTopGainers(ctx context.Context, limit int) ([]e
 	return r.scanSkins(rows)
 }
 
-// GetTopLosers - получить топ падающих скинов
 func (r *analyticsRepository) GetTopLosers(ctx context.Context, limit int) ([]entity.Skin, error) {
 	query := `
 		SELECT 
@@ -154,7 +141,6 @@ func (r *analyticsRepository) GetTopLosers(ctx context.Context, limit int) ([]en
 	return r.scanSkins(rows)
 }
 
-// GetMostPopularSkins - получить самые популярные скины (по объёму торгов)
 func (r *analyticsRepository) GetMostPopularSkins(ctx context.Context, limit int) ([]entity.Skin, error) {
 	query := `
 		SELECT 
@@ -178,7 +164,6 @@ func (r *analyticsRepository) GetMostPopularSkins(ctx context.Context, limit int
 	return r.scanSkins(rows)
 }
 
-// GetRecentlyUpdatedSkins - получить недавно обновленные скины
 func (r *analyticsRepository) GetRecentlyUpdatedSkins(ctx context.Context, limit int) ([]entity.Skin, error) {
 	query := `
 		SELECT 
@@ -202,7 +187,6 @@ func (r *analyticsRepository) GetRecentlyUpdatedSkins(ctx context.Context, limit
 	return r.scanSkins(rows)
 }
 
-// GetPriceStatsByPeriod - получить статистику цен за период (метод оставлен для совместимости, но не используется)
 func (r *analyticsRepository) GetPriceStatsByPeriod(ctx context.Context, skinID uuid.UUID, period entity.PriceStatsPeriod) (*entity.SkinStatistics, error) {
 	query := `
 		SELECT 
@@ -229,7 +213,6 @@ func (r *analyticsRepository) GetPriceStatsByPeriod(ctx context.Context, skinID 
 	return &stats, nil
 }
 
-// Helper method для сканирования скинов
 func (r *analyticsRepository) scanSkins(rows interface {
 	Next() bool
 	Scan(dest ...interface{}) error

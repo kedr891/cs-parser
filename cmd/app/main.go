@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/kedr891/cs-parser/config"
@@ -8,12 +9,12 @@ import (
 )
 
 func main() {
-	// Configuration
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Fatalf("Config error: %s", err)
 	}
 
-	// Run
-	app.Run(cfg)
+	if err := app.RunAPI(context.Background(), cfg); err != nil {
+		log.Fatalf("app terminated: %v", err)
+	}
 }

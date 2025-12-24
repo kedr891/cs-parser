@@ -11,13 +11,11 @@ import (
 	"github.com/kedr891/cs-parser/internal/entity"
 )
 
-// UserHandler - обработчик для пользователей
 type UserHandler struct {
 	service *service.UserService
 	log     domain.Logger
 }
 
-// NewUserHandler - создать обработчик пользователей
 func NewUserHandler(service *service.UserService, log domain.Logger) *UserHandler {
 	return &UserHandler{
 		service: service,

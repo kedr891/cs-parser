@@ -1,29 +1,20 @@
-# Step 1: Modules caching
-FROM golang:1.25-alpine3.21 AS modules
-
-COPY go.mod go.sum /modules/
-
-WORKDIR /modules
-
-RUN go mod download
-
-# Step 2: Builder
-FROM golang:1.25-alpine3.21 AS builder
-
-COPY --from=modules /go/pkg /go/pkg
-COPY . /app
-
+# Build stage
+FROM golang:1.25-alpine AS builder
 WORKDIR /app
+RUN apk add --no-cache git make
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /api ./cmd/app
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -tags migrate -o /bin/app ./cmd/app
-
-# Step 3: Final
-FROM scratch
-
-COPY --from=builder /app/config /config
-COPY --from=builder /app/migrations /migrations
-COPY --from=builder /bin/app /app
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-CMD ["/app"]
+# Runtime stage
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /root/
+COPY --from=builder /api .
+COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/docs ./docs
+ENV TZ=UTC
+ENV MIGRATIONS_PATH=file:///root/migrations
+EXPOSE 8080
+CMD ["./api"]

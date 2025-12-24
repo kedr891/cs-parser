@@ -12,7 +12,6 @@ import (
 	"github.com/kedr891/cs-parser/pkg/postgres"
 )
 
-// Repository - интерфейс репозитория для price consumer
 type Repository interface {
 	SavePriceHistory(ctx context.Context, history *entity.PriceHistory) error
 	GetPriceHistory(ctx context.Context, skinID uuid.UUID, period entity.PriceStatsPeriod) ([]entity.PriceHistory, error)
@@ -22,13 +21,11 @@ type Repository interface {
 	UpdateSkinPriceChange(ctx context.Context, skinID uuid.UUID, change24h, change7d float64) error
 }
 
-// repository - реализация репозитория
 type repository struct {
 	pg  *postgres.Postgres
 	log *logger.Logger
 }
 
-// NewRepository - создать репозиторий
 func NewRepository(pg *postgres.Postgres, log *logger.Logger) Repository {
 	return &repository{
 		pg:  pg,
@@ -36,7 +33,6 @@ func NewRepository(pg *postgres.Postgres, log *logger.Logger) Repository {
 	}
 }
 
-// SavePriceHistory - сохранить историю цены
 func (r *repository) SavePriceHistory(ctx context.Context, history *entity.PriceHistory) error {
 	query := `
 		INSERT INTO price_history (skin_id, price, currency, source, volume, recorded_at)
@@ -60,7 +56,6 @@ func (r *repository) SavePriceHistory(ctx context.Context, history *entity.Price
 	return nil
 }
 
-// GetPriceHistory - получить историю цен за период
 func (r *repository) GetPriceHistory(ctx context.Context, skinID uuid.UUID, period entity.PriceStatsPeriod) ([]entity.PriceHistory, error) {
 	since := time.Now().Add(-period.GetDuration())
 
@@ -90,7 +85,6 @@ func (r *repository) GetPriceHistory(ctx context.Context, skinID uuid.UUID, peri
 	return history, nil
 }
 
-// GetWatchlistsBySkinID - получить все watchlist для скина
 func (r *repository) GetWatchlistsBySkinID(ctx context.Context, skinID uuid.UUID) ([]entity.Watchlist, error) {
 	query := `
 		SELECT 
@@ -130,7 +124,6 @@ func (r *repository) GetWatchlistsBySkinID(ctx context.Context, skinID uuid.UUID
 	return watchlists, nil
 }
 
-// CalculatePriceStats - рассчитать статистику по ценам
 func (r *repository) CalculatePriceStats(ctx context.Context, skinID uuid.UUID, period entity.PriceStatsPeriod) (*entity.SkinStatistics, error) {
 	since := time.Now().Add(-period.GetDuration())
 
@@ -157,13 +150,9 @@ func (r *repository) CalculatePriceStats(ctx context.Context, skinID uuid.UUID, 
 		return nil, fmt.Errorf("calculate price stats: %w", err)
 	}
 
-	// Получить количество просмотров (если есть в БД или Redis)
-	// stats.ViewCount = ... (можно добавить позже)
-
 	return &stats, nil
 }
 
-// GetTrendingSkins - получить трендовые скины
 func (r *repository) GetTrendingSkins(ctx context.Context, limit int, period entity.PriceStatsPeriod) ([]entity.TrendingSkin, error) {
 	since := time.Now().Add(-period.GetDuration())
 
@@ -233,7 +222,6 @@ func (r *repository) GetTrendingSkins(ctx context.Context, limit int, period ent
 	return trending, nil
 }
 
-// UpdateSkinPriceChange - обновить процент изменения цены для скина
 func (r *repository) UpdateSkinPriceChange(ctx context.Context, skinID uuid.UUID, change24h, change7d float64) error {
 	query := `
 		UPDATE skins
@@ -252,7 +240,6 @@ func (r *repository) UpdateSkinPriceChange(ctx context.Context, skinID uuid.UUID
 	return nil
 }
 
-// GetPriceChartData - получить данные для графика цен
 func (r *repository) GetPriceChartData(ctx context.Context, skinID uuid.UUID, period entity.PriceStatsPeriod) (*entity.PriceChartResponse, error) {
 	history, err := r.GetPriceHistory(ctx, skinID, period)
 	if err != nil {
@@ -267,7 +254,6 @@ func (r *repository) GetPriceChartData(ctx context.Context, skinID uuid.UUID, pe
 		}, nil
 	}
 
-	// Конвертация в формат графика
 	dataPoints := make([]entity.PriceChartData, len(history))
 	var minPrice, maxPrice, sumPrice float64
 	var totalVolume int

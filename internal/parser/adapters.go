@@ -12,7 +12,6 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 )
 
-// SteamClientAdapter - адаптер для SteamClient
 type SteamClientAdapter struct {
 	client *SteamClient
 }
@@ -53,7 +52,6 @@ func (a *SteamClientAdapter) SearchItems(ctx context.Context, query string) ([]d
 	return result, nil
 }
 
-// KafkaProducerAdapter - адаптер для Kafka Producer
 type KafkaProducerAdapter struct {
 	producer *kafka.Producer
 }
@@ -70,7 +68,6 @@ func (a *KafkaProducerAdapter) Close() error {
 	return a.producer.Close()
 }
 
-// RedisAdapter - адаптер для Redis
 type RedisAdapter struct {
 	redis *redis.Redis
 }
@@ -79,7 +76,6 @@ func NewRedisAdapter(redis *redis.Redis) domain.CacheStorage {
 	return &RedisAdapter{redis: redis}
 }
 
-// Basic operations
 func (a *RedisAdapter) Get(ctx context.Context, key string) (string, error) {
 	return a.redis.GetCache(ctx, key)
 }
@@ -97,7 +93,6 @@ func (a *RedisAdapter) Exists(ctx context.Context, key string) (bool, error) {
 	return result > 0, err
 }
 
-// Rate limiting
 func (a *RedisAdapter) IncrementRateLimit(ctx context.Context, key string, ttl time.Duration) (int64, error) {
 	return a.redis.IncrementRateLimit(ctx, key, ttl)
 }
@@ -106,12 +101,9 @@ func (a *RedisAdapter) GetRateLimit(ctx context.Context, key string) (int64, err
 	return a.redis.GetRateLimit(ctx, key)
 }
 
-// Counter operations
 func (a *RedisAdapter) Increment(ctx context.Context, key string) (int64, error) {
 	return a.redis.Client.Incr(ctx, key).Result()
 }
-
-// JSON operations
 func (a *RedisAdapter) SetJSON(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -128,7 +120,6 @@ func (a *RedisAdapter) GetJSON(ctx context.Context, key string, dest interface{}
 	return json.Unmarshal([]byte(data), dest)
 }
 
-// Sorted Set operations
 func (a *RedisAdapter) ZAdd(ctx context.Context, key string, score float64, member string) error {
 	return a.redis.Client.ZAdd(ctx, key, goredis.Z{
 		Score:  score,
@@ -160,7 +151,6 @@ func (a *RedisAdapter) ZRevRangeWithScores(ctx context.Context, key string, star
 	return members, nil
 }
 
-// Hash operations
 func (a *RedisAdapter) HSet(ctx context.Context, key, field string, value interface{}) error {
 	return a.redis.Client.HSet(ctx, key, field, value).Err()
 }
@@ -173,7 +163,6 @@ func (a *RedisAdapter) HGetAll(ctx context.Context, key string) (map[string]stri
 	return a.redis.Client.HGetAll(ctx, key).Result()
 }
 
-// LoggerAdapter - адаптер для Logger
 type LoggerAdapter struct {
 	logger *logger.Logger
 }

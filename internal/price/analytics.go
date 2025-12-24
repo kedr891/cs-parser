@@ -11,25 +11,21 @@ import (
 )
 
 const (
-	// Redis keys
 	_keyTrending24h    = "analytics:trending:24h"
 	_keyTrending7d     = "analytics:trending:7d"
 	_keyMarketOverview = "analytics:market:overview"
 	_keyViewsPrefix    = "analytics:views:"
 	_keyPopularPrefix  = "analytics:popular:"
 
-	// TTL
 	_trendingTTL       = 10 * time.Minute
 	_marketOverviewTTL = 10 * time.Minute
 )
 
-// Analytics - сервис аналитики
 type Analytics struct {
 	cache domain.CacheStorage
 	log   domain.Logger
 }
 
-// NewAnalytics - создать сервис аналитики
 func NewAnalytics(cache domain.CacheStorage, log domain.Logger) *Analytics {
 	return &Analytics{
 		cache: cache,
@@ -37,17 +33,13 @@ func NewAnalytics(cache domain.CacheStorage, log domain.Logger) *Analytics {
 	}
 }
 
-// UpdateTrending - обновить трендинг по изменению цены
 func (a *Analytics) UpdateTrending(ctx context.Context, event *entity.PriceUpdateEvent) error {
-	// Используем ZIncrBy для накопления изменений цены
 	score := event.PriceChange
 
-	// Добавить в трендинг 24h
 	if _, err := a.cache.ZIncrBy(ctx, _keyTrending24h, score, event.SkinID.String()); err != nil {
 		a.log.Warn("Failed to update trending 24h", "error", err)
 	}
 
-	// Добавить в трендинг 7d
 	if _, err := a.cache.ZIncrBy(ctx, _keyTrending7d, score, event.SkinID.String()); err != nil {
 		a.log.Warn("Failed to update trending 7d", "error", err)
 	}
@@ -55,13 +47,11 @@ func (a *Analytics) UpdateTrending(ctx context.Context, event *entity.PriceUpdat
 	return nil
 }
 
-// addToTrending - добавить скин в трендинг sorted set (для обратной совместимости)
 func (a *Analytics) addToTrending(ctx context.Context, key string, event *entity.PriceUpdateEvent) error {
 	score := event.PriceChange
 	return a.cache.ZAdd(ctx, key, score, event.SkinID.String())
 }
 
-// GetTrendingSkins - получить топ трендовых скинов (только ID)
 func (a *Analytics) GetTrendingSkins(ctx context.Context, period string, limit int64) ([]string, error) {
 	key := a.getTrendingKey(period)
 	if key == "" {
@@ -76,7 +66,6 @@ func (a *Analytics) GetTrendingSkins(ctx context.Context, period string, limit i
 	return skinIDs, nil
 }
 
-// GetTrendingWithScores - получить трендинг со скорами
 func (a *Analytics) GetTrendingWithScores(ctx context.Context, period string, limit int64) ([]domain.ZMember, error) {
 	key := a.getTrendingKey(period)
 	if key == "" {
@@ -91,7 +80,6 @@ func (a *Analytics) GetTrendingWithScores(ctx context.Context, period string, li
 	return members, nil
 }
 
-// getTrendingKey - получить ключ для трендинга по периоду
 func (a *Analytics) getTrendingKey(period string) string {
 	switch period {
 	case "24h":
@@ -103,20 +91,17 @@ func (a *Analytics) getTrendingKey(period string) string {
 	}
 }
 
-// IncrementViewCount - инкремент счётчика просмотров скина
 func (a *Analytics) IncrementViewCount(ctx context.Context, skinID string) error {
 	key := _keyViewsPrefix + skinID
 	_, err := a.cache.IncrementRateLimit(ctx, key, 24*time.Hour)
 	return err
 }
 
-// GetViewCount - получить количество просмотров
 func (a *Analytics) GetViewCount(ctx context.Context, skinID string) (int64, error) {
 	key := _keyViewsPrefix + skinID
 	return a.cache.GetRateLimit(ctx, key)
 }
 
-// UpdateMarketOverview - обновить обзор рынка
 func (a *Analytics) UpdateMarketOverview(ctx context.Context, overview *entity.MarketOverview) error {
 	data, err := json.Marshal(overview)
 	if err != nil {
@@ -130,7 +115,6 @@ func (a *Analytics) UpdateMarketOverview(ctx context.Context, overview *entity.M
 	return nil
 }
 
-// GetMarketOverview - получить обзор рынка из кэша
 func (a *Analytics) GetMarketOverview(ctx context.Context) (*entity.MarketOverview, error) {
 	data, err := a.cache.Get(ctx, _keyMarketOverview)
 	if err != nil {
@@ -145,19 +129,16 @@ func (a *Analytics) GetMarketOverview(ctx context.Context) (*entity.MarketOvervi
 	return &overview, nil
 }
 
-// InvalidateMarketOverview - инвалидировать кэш обзора рынка
 func (a *Analytics) InvalidateMarketOverview(ctx context.Context) error {
 	return a.cache.Delete(ctx, _keyMarketOverview)
 }
 
-// RecordPopularSearch - записать популярный поисковый запрос
 func (a *Analytics) RecordPopularSearch(ctx context.Context, query string) error {
 	key := _keyPopularPrefix + "searches"
 	_, err := a.cache.ZIncrBy(ctx, key, 1, query)
 	return err
 }
 
-// GetPopularSearches - получить популярные поисковые запросы
 func (a *Analytics) GetPopularSearches(ctx context.Context, limit int64) ([]string, error) {
 	key := _keyPopularPrefix + "searches"
 
@@ -169,7 +150,6 @@ func (a *Analytics) GetPopularSearches(ctx context.Context, limit int64) ([]stri
 	return queries, nil
 }
 
-// GetPopularSearchesWithScores - получить популярные запросы с количеством поисков
 func (a *Analytics) GetPopularSearchesWithScores(ctx context.Context, limit int64) ([]domain.ZMember, error) {
 	key := _keyPopularPrefix + "searches"
 
@@ -181,7 +161,6 @@ func (a *Analytics) GetPopularSearchesWithScores(ctx context.Context, limit int6
 	return members, nil
 }
 
-// UpdatePriceVolatility - обновить волатильность цены
 func (a *Analytics) UpdatePriceVolatility(ctx context.Context, skinID string, volatility float64) error {
 	key := fmt.Sprintf("analytics:volatility:%s", skinID)
 
@@ -198,7 +177,6 @@ func (a *Analytics) UpdatePriceVolatility(ctx context.Context, skinID string, vo
 	return a.cache.Set(ctx, key, string(jsonData), 24*time.Hour)
 }
 
-// GetPriceVolatility - получить волатильность цены
 func (a *Analytics) GetPriceVolatility(ctx context.Context, skinID string) (float64, error) {
 	key := fmt.Sprintf("analytics:volatility:%s", skinID)
 
@@ -219,25 +197,22 @@ func (a *Analytics) GetPriceVolatility(ctx context.Context, skinID string) (floa
 	return 0, fmt.Errorf("volatility not found")
 }
 
-// TrackPriceAlert - отследить отправленный алерт (чтобы не спамить)
 func (a *Analytics) TrackPriceAlert(ctx context.Context, userID, skinID string) error {
 	key := fmt.Sprintf("alerts:sent:%s:%s", userID, skinID)
 	return a.cache.Set(ctx, key, "1", time.Hour)
 }
 
-// WasAlertSent - был ли уже отправлен алерт
 func (a *Analytics) WasAlertSent(ctx context.Context, userID, skinID string) (bool, error) {
 	key := fmt.Sprintf("alerts:sent:%s:%s", userID, skinID)
 
 	_, err := a.cache.Get(ctx, key)
 	if err != nil {
-		return false, nil // алерт не отправлялся
+		return false, nil
 	}
 
-	return true, nil // алерт уже отправлялся
+	return true, nil
 }
 
-// ClearTrending - очистить трендинг (для admin endpoints)
 func (a *Analytics) ClearTrending(ctx context.Context) error {
 	if err := a.cache.Delete(ctx, _keyTrending24h); err != nil {
 		return err
@@ -245,19 +220,16 @@ func (a *Analytics) ClearTrending(ctx context.Context) error {
 	return a.cache.Delete(ctx, _keyTrending7d)
 }
 
-// GetAnalyticsStats - получить общую статистику аналитики
 func (a *Analytics) GetAnalyticsStats(ctx context.Context) (*AnalyticsStats, error) {
-	// Упрощённая версия - для полной реализации нужен метод ZCard в интерфейсе
-	// или можно использовать ZRevRange с большим лимитом и посчитать длину
+
 	return &AnalyticsStats{
-		TrendingCount24h: 0, // требует ZCard или подсчета через ZRevRange
-		TrendingCount7d:  0, // требует ZCard или подсчета через ZRevRange
-		TotalViews:       0, // требует сканирования всех ключей views:*
+		TrendingCount24h: 0,
+		TrendingCount7d:  0,
+		TotalViews:       0,
 		UpdatedAt:        time.Now(),
 	}, nil
 }
 
-// AnalyticsStats - статистика аналитики
 type AnalyticsStats struct {
 	TrendingCount24h int64     `json:"trending_count_24h"`
 	TrendingCount7d  int64     `json:"trending_count_7d"`
@@ -265,13 +237,11 @@ type AnalyticsStats struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
-// BatchUpdateTrending - пакетное обновление трендинга
 func (a *Analytics) BatchUpdateTrending(ctx context.Context, events []*entity.PriceUpdateEvent) error {
 	if len(events) == 0 {
 		return nil
 	}
 
-	// Обрабатываем каждое событие
 	for _, event := range events {
 		if err := a.UpdateTrending(ctx, event); err != nil {
 			a.log.Warn("Failed to update trending for event", "skin_id", event.SkinID, "error", err)

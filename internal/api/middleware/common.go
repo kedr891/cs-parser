@@ -7,7 +7,6 @@ import (
 	"github.com/kedr891/cs-parser/pkg/logger"
 )
 
-// Logger - middleware для логирования запросов
 func Logger(log *logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -29,7 +28,6 @@ func Logger(log *logger.Logger) gin.HandlerFunc {
 	}
 }
 
-// CORS - middleware для CORS
 func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -46,7 +44,6 @@ func CORS() gin.HandlerFunc {
 	}
 }
 
-// RateLimit - простой rate limiter на базе IP
 func RateLimit(requestsPerMinute int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// TODO: Implement Redis-based rate limiting

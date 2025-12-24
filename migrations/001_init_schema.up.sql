@@ -1,40 +1,31 @@
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Функция для генерации slug из market_hash_name
 CREATE OR REPLACE FUNCTION generate_skin_slug(market_hash_name TEXT)
 RETURNS TEXT AS $$
 DECLARE
     slug TEXT;
     quality_abbr TEXT;
 BEGIN
-    -- Преобразовать в lowercase
     slug := LOWER(market_hash_name);
-    
-    -- Заменить качества на аббревиатуры
+
     slug := REPLACE(slug, '(factory new)', 'fn');
     slug := REPLACE(slug, '(minimal wear)', 'mw');
     slug := REPLACE(slug, '(field-tested)', 'ft');
     slug := REPLACE(slug, '(well-worn)', 'ww');
     slug := REPLACE(slug, '(battle-scarred)', 'bs');
-    
-    -- Убрать скобки и спецсимволы
+
     slug := REGEXP_REPLACE(slug, '[|()\[\]{}]', '', 'g');
-    
-    -- Заменить пробелы, дефисы и другие спецсимволы на подчеркивание
+
     slug := REGEXP_REPLACE(slug, '[^a-z0-9]+', '_', 'g');
-    
-    -- Убрать лишние подчеркивания в начале и конце
+
     slug := TRIM(BOTH '_' FROM slug);
     
-    -- Убрать множественные подчеркивания
     slug := REGEXP_REPLACE(slug, '_+', '_', 'g');
     
     RETURN slug;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- Trigger функция для автоматической генерации slug
 CREATE OR REPLACE FUNCTION set_skin_slug()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -45,7 +36,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger функция для обновления updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -54,7 +44,6 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
--- Skins table
 CREATE TABLE IF NOT EXISTS skins (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     slug VARCHAR(255) UNIQUE NOT NULL,
@@ -76,7 +65,6 @@ CREATE TABLE IF NOT EXISTS skins (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Price history table
 CREATE TABLE IF NOT EXISTS price_history (
     id BIGSERIAL PRIMARY KEY,
     skin_id UUID NOT NULL REFERENCES skins(id) ON DELETE CASCADE,
@@ -87,7 +75,6 @@ CREATE TABLE IF NOT EXISTS price_history (
     recorded_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -101,7 +88,6 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- User settings table
 CREATE TABLE IF NOT EXISTS user_settings (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     email_notifications BOOLEAN NOT NULL DEFAULT true,
@@ -112,7 +98,6 @@ CREATE TABLE IF NOT EXISTS user_settings (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Watchlist table
 CREATE TABLE IF NOT EXISTS watchlist (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -126,7 +111,6 @@ CREATE TABLE IF NOT EXISTS watchlist (
     UNIQUE(user_id, skin_id)
 );
 
--- Notifications table
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -140,7 +124,6 @@ CREATE TABLE IF NOT EXISTS notifications (
     read_at TIMESTAMP
 );
 
--- Notification preferences table
 CREATE TABLE IF NOT EXISTS notification_preferences (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     enabled_types JSONB NOT NULL DEFAULT '["price_drop", "target_reached"]'::jsonb,
@@ -155,8 +138,7 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Skins indexes
-CREATE INDEX IF NOT EXISTS idx_skins_slug ON skins(slug);              -- ✅ НОВЫЙ ИНДЕКС
+CREATE INDEX IF NOT EXISTS idx_skins_slug ON skins(slug);
 CREATE INDEX IF NOT EXISTS idx_skins_weapon ON skins(weapon);
 CREATE INDEX IF NOT EXISTS idx_skins_quality ON skins(quality);
 CREATE INDEX IF NOT EXISTS idx_skins_current_price ON skins(current_price);
@@ -164,33 +146,27 @@ CREATE INDEX IF NOT EXISTS idx_skins_volume_24h ON skins(volume_24h);
 CREATE INDEX IF NOT EXISTS idx_skins_updated_at ON skins(updated_at);
 CREATE INDEX IF NOT EXISTS idx_skins_market_hash_name ON skins(market_hash_name);
 
--- Price history indexes
 CREATE INDEX IF NOT EXISTS idx_price_history_skin_id ON price_history(skin_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_recorded_at ON price_history(recorded_at);
 CREATE INDEX IF NOT EXISTS idx_price_history_skin_recorded ON price_history(skin_id, recorded_at);
 
--- Users indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 
--- Watchlist indexes
 CREATE INDEX IF NOT EXISTS idx_watchlist_user_id ON watchlist(user_id);
 CREATE INDEX IF NOT EXISTS idx_watchlist_skin_id ON watchlist(skin_id);
 CREATE INDEX IF NOT EXISTS idx_watchlist_active ON watchlist(is_active) WHERE is_active = true;
 
--- Notifications indexes
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read) WHERE is_read = false;
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read) WHERE is_read = false;
 
--- Auto-generate slug for skins
 CREATE TRIGGER trigger_set_skin_slug
 BEFORE INSERT OR UPDATE ON skins
 FOR EACH ROW
 EXECUTE FUNCTION set_skin_slug();
 
--- Update updated_at timestamps
 CREATE TRIGGER update_skins_updated_at 
 BEFORE UPDATE ON skins
 FOR EACH ROW 

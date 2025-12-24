@@ -2,134 +2,230 @@ package config
 
 import (
 	"fmt"
-	"reflect"
+	"os"
+	"strconv"
 	"strings"
 
-	"github.com/caarlos0/env/v11"
+	"gopkg.in/yaml.v3"
 )
 
-type (
-	// Config -.
-	Config struct {
-		App     App
-		HTTP    HTTP
-		Log     Log
-		PG      PG
-		Shard   Shard
-		Redis   Redis
-		Kafka   Kafka
-		Parser  Parser
-		JWT     JWT
-		Metrics Metrics
-		Swagger Swagger
-	}
+type Config struct {
+	App     AppConfig     `yaml:"app"`
+	HTTP    HTTPConfig    `yaml:"http"`
+	Log     LogConfig     `yaml:"log"`
+	PG      PGConfig      `yaml:"pg"`
+	Shard   ShardConfig   `yaml:"shard"`
+	Redis   RedisConfig   `yaml:"redis"`
+	Kafka   KafkaConfig   `yaml:"kafka"`
+	Parser  ParserConfig  `yaml:"parser"`
+	JWT     JWTConfig     `yaml:"jwt"`
+	Metrics MetricsConfig `yaml:"metrics"`
+	Swagger SwaggerConfig `yaml:"swagger"`
+}
 
-	// App -.
-	App struct {
-		Name    string `env:"APP_NAME" envDefault:"kedr891/cs-parser"`
-		Version string `env:"APP_VERSION" envDefault:"1.0.0"`
-	}
+type AppConfig struct {
+	Name    string `yaml:"name"`
+	Version string `yaml:"version"`
+}
 
-	// HTTP -.
-	HTTP struct {
-		Port string `env:"HTTP_PORT" envDefault:"8080"`
-	}
+type HTTPConfig struct {
+	Port string `yaml:"port"`
+}
 
-	// Log -.
-	Log struct {
-		Level string `env:"LOG_LEVEL" envDefault:"info"`
-	}
+type LogConfig struct {
+	Level string `yaml:"level"`
+}
 
-	// PG -.
-	PG struct {
-		PoolMax int    `env:"PG_POOL_MAX" envDefault:"10"`
-		URL     string `env:"PG_URL"` // Убрали required - теперь опционально
-	}
+type PGConfig struct {
+	PoolMax int    `yaml:"poolMax"`
+	URL     string `yaml:"url"`
+}
 
-	// Shard - конфигурация шардирования
-	Shard struct {
-		Enabled bool     `env:"SHARD_ENABLED" envDefault:"false"`
-		URLs    []string `env:"SHARD_URLS" envSeparator:","`
-	}
+type ShardConfig struct {
+	Enabled bool     `yaml:"enabled"`
+	URLs    []string `yaml:"urls"`
+}
 
-	// Redis -.
-	Redis struct {
-		Addr     string `env:"REDIS_ADDR" envDefault:"localhost:6379"`
-		Password string `env:"REDIS_PASSWORD"`
-		DB       int    `env:"REDIS_DB" envDefault:"0"`
-	}
+type RedisConfig struct {
+	Addr     string `yaml:"addr"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
+}
 
-	// Kafka -.
-	Kafka struct {
-		Brokers             []string `env:"KAFKA_BROKERS" envSeparator:","`
-		TopicPriceUpdated   string   `env:"KAFKA_TOPIC_PRICE_UPDATED" envDefault:"skin.price.updated"`
-		TopicSkinDiscovered string   `env:"KAFKA_TOPIC_SKIN_DISCOVERED" envDefault:"skin.discovered"`
-		TopicPriceAlert     string   `env:"KAFKA_TOPIC_PRICE_ALERT" envDefault:"notification.price_alert"`
-		GroupPriceConsumer  string   `env:"KAFKA_GROUP_PRICE_CONSUMER" envDefault:"price-consumer-group"`
-		GroupNotification   string   `env:"KAFKA_GROUP_NOTIFICATION" envDefault:"notification-consumer-group"`
-	}
+type KafkaConfig struct {
+	Brokers             []string `yaml:"brokers"`
+	TopicPriceUpdated   string   `yaml:"topicPriceUpdated"`
+	TopicSkinDiscovered string   `yaml:"topicSkinDiscovered"`
+	TopicPriceAlert     string   `yaml:"topicPriceAlert"`
+	GroupPriceConsumer  string   `yaml:"groupPriceConsumer"`
+	GroupNotification   string   `yaml:"groupNotification"`
+}
 
-	// Parser -.
-	Parser struct {
-		IntervalMinutes    int `env:"PARSER_INTERVAL_MINUTES" envDefault:"5"`
-		RateLimitPerMinute int `env:"PARSER_RATE_LIMIT_PER_MINUTE" envDefault:"60"`
-	}
+type ParserConfig struct {
+	IntervalMinutes    int `yaml:"intervalMinutes"`
+	RateLimitPerMinute int `yaml:"rateLimitPerMinute"`
+}
 
-	// JWT -.
-	JWT struct {
-		Secret          string `env:"JWT_SECRET,required"`
-		ExpirationHours int    `env:"JWT_EXPIRATION_HOURS" envDefault:"168"` // 7 days
-	}
+type JWTConfig struct {
+	Secret          string `yaml:"secret"`
+	ExpirationHours int    `yaml:"expirationHours"`
+}
 
-	// Metrics -.
-	Metrics struct {
-		Enabled bool `env:"METRICS_ENABLED" envDefault:"true"`
-	}
+type MetricsConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
 
-	// Swagger -.
-	Swagger struct {
-		Enabled bool `env:"SWAGGER_ENABLED" envDefault:"false"`
-	}
-)
+type SwaggerConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
 
-// NewConfig returns app config.
 func NewConfig() (*Config, error) {
+	return LoadConfig("")
+}
+
+func LoadConfig(filename string) (*Config, error) {
 	cfg := &Config{}
 
-	// Custom parser for Kafka brokers
-	opts := env.Options{
-		FuncMap: map[reflect.Type]env.ParserFunc{
-			reflect.TypeOf([]string{}): func(v string) (interface{}, error) {
-				if v == "" {
-					return []string{}, nil
-				}
-				return strings.Split(v, ","), nil
-			},
-		},
+	if strings.TrimSpace(filename) != "" {
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+
+		if err := yaml.Unmarshal(data, cfg); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
+		}
 	}
 
-	if err := env.ParseWithOptions(cfg, opts); err != nil {
-		return nil, fmt.Errorf("config error: %w", err)
-	}
+	cfg.applyEnv()
 
-	// Validate Kafka brokers
-	if len(cfg.Kafka.Brokers) == 0 {
-		cfg.Kafka.Brokers = []string{"localhost:9092"}
-	}
-
-	// Validate database configuration
-	if !cfg.IsShardingEnabled() && cfg.PG.URL == "" {
-		return nil, fmt.Errorf("PG_URL is required when sharding is disabled")
-	}
-
-	if cfg.IsShardingEnabled() && len(cfg.Shard.URLs) == 0 {
-		return nil, fmt.Errorf("SHARD_URLS is required when sharding is enabled")
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
 
 	return cfg, nil
 }
 
-// GetShardURLs - получить URL'ы шардов
+func (c *Config) applyEnv() {
+	if env := strings.TrimSpace(os.Getenv("APP_NAME")); env != "" {
+		c.App.Name = env
+	}
+	if env := strings.TrimSpace(os.Getenv("APP_VERSION")); env != "" {
+		c.App.Version = env
+	}
+
+	if env := strings.TrimSpace(os.Getenv("HTTP_PORT")); env != "" {
+		c.HTTP.Port = env
+	}
+
+	if env := strings.TrimSpace(os.Getenv("LOG_LEVEL")); env != "" {
+		c.Log.Level = env
+	}
+
+	if env := strings.TrimSpace(os.Getenv("PG_POOL_MAX")); env != "" {
+		if poolMax, err := strconv.Atoi(env); err == nil {
+			c.PG.PoolMax = poolMax
+		}
+	}
+	if env := strings.TrimSpace(os.Getenv("PG_URL")); env != "" {
+		c.PG.URL = env
+	}
+
+	if env := strings.TrimSpace(os.Getenv("SHARD_ENABLED")); env != "" {
+		c.Shard.Enabled = env == "true" || env == "1"
+	}
+	if env := strings.TrimSpace(os.Getenv("SHARD_URLS")); env != "" {
+		parts := strings.Split(env, ",")
+		for i := range parts {
+			parts[i] = strings.TrimSpace(parts[i])
+		}
+		c.Shard.URLs = parts
+	}
+
+	if env := strings.TrimSpace(os.Getenv("REDIS_ADDR")); env != "" {
+		c.Redis.Addr = env
+	}
+	if env := strings.TrimSpace(os.Getenv("REDIS_PASSWORD")); env != "" {
+		c.Redis.Password = env
+	}
+	if env := strings.TrimSpace(os.Getenv("REDIS_DB")); env != "" {
+		if db, err := strconv.Atoi(env); err == nil {
+			c.Redis.DB = db
+		}
+	}
+
+	if env := strings.TrimSpace(os.Getenv("KAFKA_BROKERS")); env != "" {
+		parts := strings.Split(env, ",")
+		for i := range parts {
+			parts[i] = strings.TrimSpace(parts[i])
+		}
+		c.Kafka.Brokers = parts
+	}
+	if env := strings.TrimSpace(os.Getenv("KAFKA_TOPIC_PRICE_UPDATED")); env != "" {
+		c.Kafka.TopicPriceUpdated = env
+	}
+	if env := strings.TrimSpace(os.Getenv("KAFKA_TOPIC_SKIN_DISCOVERED")); env != "" {
+		c.Kafka.TopicSkinDiscovered = env
+	}
+	if env := strings.TrimSpace(os.Getenv("KAFKA_TOPIC_PRICE_ALERT")); env != "" {
+		c.Kafka.TopicPriceAlert = env
+	}
+	if env := strings.TrimSpace(os.Getenv("KAFKA_GROUP_PRICE_CONSUMER")); env != "" {
+		c.Kafka.GroupPriceConsumer = env
+	}
+	if env := strings.TrimSpace(os.Getenv("KAFKA_GROUP_NOTIFICATION")); env != "" {
+		c.Kafka.GroupNotification = env
+	}
+
+	if env := strings.TrimSpace(os.Getenv("PARSER_INTERVAL_MINUTES")); env != "" {
+		if interval, err := strconv.Atoi(env); err == nil {
+			c.Parser.IntervalMinutes = interval
+		}
+	}
+	if env := strings.TrimSpace(os.Getenv("PARSER_RATE_LIMIT_PER_MINUTE")); env != "" {
+		if rateLimit, err := strconv.Atoi(env); err == nil {
+			c.Parser.RateLimitPerMinute = rateLimit
+		}
+	}
+
+	if env := strings.TrimSpace(os.Getenv("JWT_SECRET")); env != "" {
+		c.JWT.Secret = env
+	}
+	if env := strings.TrimSpace(os.Getenv("JWT_EXPIRATION_HOURS")); env != "" {
+		if hours, err := strconv.Atoi(env); err == nil {
+			c.JWT.ExpirationHours = hours
+		}
+	}
+
+	if env := strings.TrimSpace(os.Getenv("METRICS_ENABLED")); env != "" {
+		c.Metrics.Enabled = env == "true" || env == "1"
+	}
+
+	if env := strings.TrimSpace(os.Getenv("SWAGGER_ENABLED")); env != "" {
+		c.Swagger.Enabled = env == "true" || env == "1"
+	}
+}
+
+func (c *Config) validate() error {
+	if !c.IsShardingEnabled() && c.PG.URL == "" {
+		return fmt.Errorf("PG_URL is required when sharding is disabled")
+	}
+
+	if c.IsShardingEnabled() && len(c.Shard.URLs) == 0 {
+		return fmt.Errorf("SHARD_URLS is required when sharding is enabled")
+	}
+
+	if len(c.Kafka.Brokers) == 0 {
+		c.Kafka.Brokers = []string{"localhost:9092"}
+	}
+
+	if c.JWT.Secret == "" {
+		return fmt.Errorf("JWT_SECRET is required")
+	}
+
+	return nil
+}
+
 func (c *Config) GetShardURLs() []string {
 	if c.Shard.Enabled && len(c.Shard.URLs) > 0 {
 		return c.Shard.URLs
@@ -137,7 +233,6 @@ func (c *Config) GetShardURLs() []string {
 	return []string{c.PG.URL}
 }
 
-// IsShardingEnabled - проверить, включено ли шардирование
 func (c *Config) IsShardingEnabled() bool {
 	return c.Shard.Enabled && len(c.Shard.URLs) > 1
 }
