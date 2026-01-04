@@ -1,0 +1,64 @@
+app:
+  name: "kedr891/cs-parser"
+  version: "1.0.0"
+
+http:
+  port: "8080"
+
+grpc:
+  port: "50051"
+
+gateway:
+  port: "8080"
+  swaggerPath: "./internal/pb/swagger/skins_api/skins.swagger.json"
+
+log:
+  level: "debug"
+
+pg:
+  poolMax: 10
+  url: "postgres://cs2_user:cs2_secure_pass_2024@postgres:5432/cs2_skins?sslmode=disable"
+
+database:
+  host: "postgres"
+  port: 5432
+  username: "cs2_user"
+  password: "cs2_secure_pass_2024"
+  name: "cs2_skins"
+  ssl_mode: "disable"
+  shards: []
+
+shard:
+  enabled: true
+  urls:
+    - "postgres://cs2_user:cs2_secure_pass_2024@postgres_shard_pistols:5432/cs2_skins?sslmode=disable"
+    - "postgres://cs2_user:cs2_secure_pass_2024@postgres_shard_rifles:5432/cs2_skins?sslmode=disable"
+    - "postgres://cs2_user:cs2_secure_pass_2024@postgres_shard_other:5432/cs2_skins?sslmode=disable"
+
+redis:
+  host: "redis"
+  port: 6379
+  addr: "redis:6379"
+  password: ""
+  db: 0
+  ttlSeconds: 1800
+
+kafka:
+  host: "kafka"
+  port: 9092
+  brokers:
+    - "kafka:9092"
+  topicPriceUpdated: "skin.price.updated"
+  topicSkinDiscovered: "skin.discovered"
+  topicPriceAlert: "notification.price_alert"
+  groupPriceConsumer: "price-consumer-group"
+
+parser:
+  intervalMinutes: 15
+  rateLimitPerMinute: 60
+
+metrics:
+  enabled: true
+
+swagger:
+  enabled: true

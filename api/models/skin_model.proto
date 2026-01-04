@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package skins.models.v1;
+option go_package = "github.com/kedr891/cs-parser/internal/pb/models";
+
+message SkinModel {
+    string id = 1;
+    string market_hash_name = 2;
+    string name = 3;
+    string weapon = 4;
+    string quality = 5;
+    string rarity = 6;
+    double current_price = 7;
+    string currency = 8;
+    string image_url = 9;
+    int32 volume_24h = 10;
+    double price_change_24h = 11;
+    double price_change_7d = 12;
+    string slug = 13;
+    string created_at = 14;
+    string updated_at = 15;
+}
+
+message SkinDetailModel {
+    SkinModel skin = 1;
+    SkinStatisticsModel statistics = 2;
+    repeated PriceHistoryModel price_history = 3;
+}
+
+message SkinStatisticsModel {
+    double avg_price_7d = 1;
+    double avg_price_30d = 2;
+    int32 total_volume_7d = 3;
+    int32 total_volume_30d = 4;
+    double price_volatility = 5;
+    double min_price_7d = 6;
+    double max_price_7d = 7;
+}
+
+message PriceHistoryModel {
+    string id = 1;
+    string skin_id = 2;
+    double price = 3;
+    string currency = 4;
+    string source = 5;
+    int32 volume = 6;
+    string recorded_at = 7;
+}
+
+message PriceChartDataModel {
+    string timestamp = 1;
+    double price = 2;
+    int32 volume = 3;
+}
+
+message MarketOverviewModel {
+    int32 total_skins = 1;
+    double avg_price = 2;
+    int32 total_volume_24h = 3;
+}
+
+message TrendingSkinModel {
+    int32 rank = 1;
+    SkinModel skin = 2;
+    double price_change_rate = 3;
+}

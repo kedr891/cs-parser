@@ -1,20 +1,36 @@
+# syntax=docker/dockerfile:1
+
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM golang:1.23-alpine AS builder
+
 WORKDIR /app
-RUN apk add --no-cache git make
+
+# Install dependencies
+RUN apk add --no-cache git
+
+# Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
+
+# Copy source code
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /api ./cmd/app
+
+# Build binaries
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/api ./cmd/api
 
 # Runtime stage
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates tzdata
-WORKDIR /root/
-COPY --from=builder /api .
-COPY --from=builder /app/migrations ./migrations
-COPY --from=builder /app/docs ./docs
-ENV TZ=UTC
-ENV MIGRATIONS_PATH=file:///root/migrations
-EXPOSE 8080
-CMD ["./api"]
+
+WORKDIR /app
+
+# Install ca-certificates for HTTPS
+RUN apk --no-cache add ca-certificates
+
+# Copy binaries from builder
+COPY --from=builder /app/bin/ /app/bin/
+COPY --from=builder /app/config.yaml /app/config.yaml
+COPY --from=builder /app/internal/pb/swagger/ /app/internal/pb/swagger/
+
+# Default command (can be overridden)
+CMD ["/app/bin/api"]
+

@@ -1,0 +1,18 @@
+packages:
+  github.com/kedr891/cs-parser/internal/services/skinService:
+    config:
+      dir: "{{.InterfaceDir}}/mocks"
+      filename: "mocks.go"
+      outpkg: "mocks"
+    interfaces:
+      SkinStorage:
+      SkinCache:
+  github.com/kedr891/cs-parser/internal/services/analyticsService:
+    config:
+      dir: "{{.InterfaceDir}}/mocks"
+      filename: "mocks.go"
+      outpkg: "mocks"
+    interfaces:
+      AnalyticsStorage:
+      CacheStorage:
+

@@ -1,0 +1,797 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "skins_api/skins.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "SkinsService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/analytics/market-overview": {
+      "get": {
+        "operationId": "SkinsService_GetMarketOverview",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetMarketOverviewResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    },
+    "/api/v1/analytics/top-gainers": {
+      "get": {
+        "operationId": "SkinsService_GetTopGainers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetTopGainersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    },
+    "/api/v1/analytics/top-losers": {
+      "get": {
+        "operationId": "SkinsService_GetTopLosers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetTopLosersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    },
+    "/api/v1/analytics/trending": {
+      "get": {
+        "operationId": "SkinsService_GetTrending",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetTrendingResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    },
+    "/api/v1/skins": {
+      "get": {
+        "operationId": "SkinsService_GetSkins",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetSkinsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "weapon",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quality",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      },
+      "post": {
+        "operationId": "SkinsService_CreateSkin",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateSkinResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateSkinRequest"
+            }
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    },
+    "/api/v1/skins/chart/{slug}": {
+      "get": {
+        "operationId": "SkinsService_GetPriceChart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetPriceChartResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    },
+    "/api/v1/skins/popular": {
+      "get": {
+        "operationId": "SkinsService_GetPopularSkins",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetPopularSkinsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    },
+    "/api/v1/skins/search": {
+      "get": {
+        "operationId": "SkinsService_SearchSkins",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SearchSkinsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    },
+    "/api/v1/skins/{slug}": {
+      "get": {
+        "operationId": "SkinsService_GetSkinBySlug",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetSkinBySlugResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "SkinsService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1GetMarketOverviewResponse": {
+      "type": "object",
+      "properties": {
+        "overview": {
+          "$ref": "#/definitions/v1MarketOverviewModel"
+        }
+      }
+    },
+    "v1GetPopularSkinsResponse": {
+      "type": "object",
+      "properties": {
+        "skins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SkinModel"
+          }
+        }
+      }
+    },
+    "v1GetPriceChartResponse": {
+      "type": "object",
+      "properties": {
+        "skinId": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "dataPoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1PriceChartDataModel"
+          }
+        },
+        "minPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "maxPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "avgPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalVolume": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1GetSkinBySlugResponse": {
+      "type": "object",
+      "properties": {
+        "skin": {
+          "$ref": "#/definitions/v1SkinDetailModel"
+        }
+      }
+    },
+    "v1GetSkinsResponse": {
+      "type": "object",
+      "properties": {
+        "skins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SkinModel"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1CreateSkinRequest": {
+      "type": "object",
+      "required": [
+        "name",
+        "weapon",
+        "quality"
+      ],
+      "properties": {
+        "marketHashName": {
+          "type": "string",
+          "description": "Optional. Auto-generated from weapon, name, and quality if not provided. Format: 'Weapon | Name (Quality)'"
+        },
+        "name": {
+          "type": "string",
+          "description": "Required. Skin name (e.g., 'Safari Mesh')"
+        },
+        "weapon": {
+          "type": "string",
+          "description": "Required. Weapon name (e.g., 'AK-47', 'AWP')"
+        },
+        "quality": {
+          "type": "string",
+          "description": "Required. Quality (e.g., 'Field-Tested', 'Battle-Scarred')"
+        },
+        "rarity": {
+          "type": "string",
+          "description": "Optional. Rarity (e.g., 'Industrial Grade', 'Restricted')"
+        },
+        "currentPrice": {
+          "type": "number",
+          "format": "double",
+          "description": "Optional. Current price in USD"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Optional. Currency code (default: 'USD')"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Optional. Image URL"
+        }
+      }
+    },
+    "v1CreateSkinResponse": {
+      "type": "object",
+      "properties": {
+        "skin": {
+          "$ref": "#/definitions/v1SkinModel"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GetTopGainersResponse": {
+      "type": "object",
+      "properties": {
+        "skins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SkinModel"
+          }
+        }
+      }
+    },
+    "v1GetTopLosersResponse": {
+      "type": "object",
+      "properties": {
+        "skins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SkinModel"
+          }
+        }
+      }
+    },
+    "v1GetTrendingResponse": {
+      "type": "object",
+      "properties": {
+        "trendingSkins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TrendingSkinModel"
+          }
+        }
+      }
+    },
+    "v1MarketOverviewModel": {
+      "type": "object",
+      "properties": {
+        "totalSkins": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "avgPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalVolume24h": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1PriceChartDataModel": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1PriceHistoryModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "skinId": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "volume": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "recordedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SearchSkinsResponse": {
+      "type": "object",
+      "properties": {
+        "skins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SkinModel"
+          }
+        }
+      }
+    },
+    "v1SkinDetailModel": {
+      "type": "object",
+      "properties": {
+        "skin": {
+          "$ref": "#/definitions/v1SkinModel"
+        },
+        "statistics": {
+          "$ref": "#/definitions/v1SkinStatisticsModel"
+        },
+        "priceHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1PriceHistoryModel"
+          }
+        }
+      }
+    },
+    "v1SkinModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "marketHashName": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "weapon": {
+          "type": "string"
+        },
+        "quality": {
+          "type": "string"
+        },
+        "rarity": {
+          "type": "string"
+        },
+        "currentPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "volume24h": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "priceChange24h": {
+          "type": "number",
+          "format": "double"
+        },
+        "priceChange7d": {
+          "type": "number",
+          "format": "double"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SkinStatisticsModel": {
+      "type": "object",
+      "properties": {
+        "avgPrice7d": {
+          "type": "number",
+          "format": "double"
+        },
+        "avgPrice30d": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalVolume7d": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalVolume30d": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "priceVolatility": {
+          "type": "number",
+          "format": "double"
+        },
+        "minPrice7d": {
+          "type": "number",
+          "format": "double"
+        },
+        "maxPrice7d": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1TrendingSkinModel": {
+      "type": "object",
+      "properties": {
+        "rank": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "skin": {
+          "$ref": "#/definitions/v1SkinModel"
+        },
+        "priceChangeRate": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    }
+  }
+}

@@ -30,10 +30,6 @@ x-app-environment: &x-app-environment
   KAFKA_TOPIC_SKIN_DISCOVERED: "skin.discovered"
   KAFKA_TOPIC_PRICE_ALERT: "notification.price_alert"
   KAFKA_GROUP_PRICE_CONSUMER: "price-consumer-group"
-  KAFKA_GROUP_NOTIFICATION: "notification-consumer-group"
-  # JWT
-  JWT_SECRET: "your-secret-key-change-in-production"
-  JWT_EXPIRATION_HOURS: "168"
   # Parser settings
   PARSER_INTERVAL_MINUTES: "5"
   PARSER_RATE_LIMIT_PER_MINUTE: "60"
@@ -149,7 +145,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@cs2_kafka:9093"
-      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_NUM_PARTITIONS: 3
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_LOG_RETENTION_HOURS: 168
     volumes:
@@ -164,6 +160,28 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+
+  # Kafka Topics Initializer
+  kafka-init:
+    container_name: cs2_kafka_init
+    image: confluentinc/cp-kafka:8.1.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: |
+      bash -c "
+      echo 'Waiting for Kafka to be ready...'
+      sleep 10
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic skin.price.updated --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic skin.discovered --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notification.price_alert --partitions 3 --replication-factor 1
+      echo 'Topics created:'
+      kafka-topics --bootstrap-server kafka:9092 --list
+      "
+    networks:
+      - cs2_network
+    profiles:
+      - sharding
 
   # AKHQ - Kafka UI
   akhq:
@@ -190,74 +208,27 @@ services:
       - cs2_network
     restart: unless-stopped
 
-  # Parser service
-  parser:
-    container_name: cs2_parser
-    build:
-      context: .
-      dockerfile: Dockerfile.parser
-    environment:
-      <<: *x-app-environment
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - cs2_network
-    restart: unless-stopped
-
-  # Price consumer
-  price-consumer:
-    container_name: cs2_price_consumer
-    build:
-      context: .
-      dockerfile: Dockerfile.price-consumer
-    environment:
-      <<: *x-app-environment
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - cs2_network
-    restart: unless-stopped
-
-  # Notification service
-  notification:
-    container_name: cs2_notification
-    build:
-      context: .
-      dockerfile: Dockerfile.notification
-    environment:
-      <<: *x-app-environment
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - cs2_network
-    restart: unless-stopped
-
   # API service
   api:
     container_name: cs2_api
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: Dockerfile
+    command: ["/app/bin/api"]
     environment:
-      <<: *x-app-environment
-      SWAGGER_ENABLED: "true"
+      configPath: /app/config.yaml
+      swaggerPath: /app/internal/pb/swagger/skins_api/skins.swagger.json
+    volumes:
+      - ./config.yaml:/app/config.yaml
     ports:
       - "8080:8080"
+      - "50051:50051"
     depends_on:
-      postgres:
+      postgres_shard_pistols:
+        condition: service_healthy
+      postgres_shard_rifles:
+        condition: service_healthy
+      postgres_shard_other:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -266,6 +237,8 @@ services:
     networks:
       - cs2_network
     restart: unless-stopped
+    profiles:
+      - sharding
 
 networks:
   cs2_network:

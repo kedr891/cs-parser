@@ -1,0 +1,178 @@
+syntax = "proto3";
+
+package skins.service.v1;
+option go_package = "github.com/kedr891/cs-parser/internal/pb/skins_api";
+
+import "models/skin_model.proto";
+import "google/api/annotations.proto";
+
+service SkinsService {
+    rpc CreateSkin (CreateSkinRequest) returns (CreateSkinResponse) {
+        option (google.api.http) = {
+            post: "/api/v1/skins"
+            body: "*"
+        };
+    }
+
+    rpc GetSkins (GetSkinsRequest) returns (GetSkinsResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/skins"
+        };
+    }
+
+    rpc GetSkinBySlug (GetSkinBySlugRequest) returns (GetSkinBySlugResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/skins/{slug}"
+        };
+    }
+
+    rpc SearchSkins (SearchSkinsRequest) returns (SearchSkinsResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/skins/search"
+        };
+    }
+
+    rpc GetPopularSkins (GetPopularSkinsRequest) returns (GetPopularSkinsResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/skins/popular"
+        };
+    }
+
+    rpc GetPriceChart (GetPriceChartRequest) returns (GetPriceChartResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/skins/chart/{slug}"
+        };
+    }
+
+    rpc GetTrending (GetTrendingRequest) returns (GetTrendingResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/analytics/trending"
+        };
+    }
+
+    rpc GetMarketOverview (GetMarketOverviewRequest) returns (GetMarketOverviewResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/analytics/market-overview"
+        };
+    }
+
+    rpc GetTopGainers (GetTopGainersRequest) returns (GetTopGainersResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/analytics/top-gainers"
+        };
+    }
+
+    rpc GetTopLosers (GetTopLosersRequest) returns (GetTopLosersResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/analytics/top-losers"
+        };
+    }
+}
+
+message CreateSkinRequest {
+    string market_hash_name = 1;
+    string name = 2;
+    string weapon = 3;
+    string quality = 4;
+    string rarity = 5;
+    double current_price = 6;
+    string currency = 7;
+    string image_url = 8;
+}
+
+message CreateSkinResponse {
+    skins.models.v1.SkinModel skin = 1;
+    string message = 2;
+}
+
+message GetSkinsRequest {
+    string weapon = 1;
+    string quality = 2;
+    double min_price = 3;
+    double max_price = 4;
+    string search = 5;
+    string sort_by = 6;
+    string sort_order = 7;
+    int32 page = 8;
+    int32 page_size = 9;
+}
+
+message GetSkinsResponse {
+    repeated skins.models.v1.SkinModel skins = 1;
+    int32 total = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+    int32 total_pages = 5;
+}
+
+message GetSkinBySlugRequest {
+    string slug = 1;
+    string period = 2;
+}
+
+message GetSkinBySlugResponse {
+    skins.models.v1.SkinDetailModel skin = 1;
+}
+
+message SearchSkinsRequest {
+    string query = 1;
+    int32 limit = 2;
+}
+
+message SearchSkinsResponse {
+    repeated skins.models.v1.SkinModel skins = 1;
+}
+
+message GetPopularSkinsRequest {
+    int32 limit = 1;
+}
+
+message GetPopularSkinsResponse {
+    repeated skins.models.v1.SkinModel skins = 1;
+}
+
+message GetPriceChartRequest {
+    string slug = 1;
+    string period = 2;
+}
+
+message GetPriceChartResponse {
+    string skin_id = 1;
+    string period = 2;
+    repeated skins.models.v1.PriceChartDataModel data_points = 3;
+    double min_price = 4;
+    double max_price = 5;
+    double avg_price = 6;
+    int32 total_volume = 7;
+}
+
+message GetTrendingRequest {
+    string period = 1;
+    int32 limit = 2;
+}
+
+message GetTrendingResponse {
+    repeated skins.models.v1.TrendingSkinModel trending_skins = 1;
+}
+
+message GetMarketOverviewRequest {}
+
+message GetMarketOverviewResponse {
+    skins.models.v1.MarketOverviewModel overview = 1;
+}
+
+message GetTopGainersRequest {
+    int32 limit = 1;
+}
+
+message GetTopGainersResponse {
+    repeated skins.models.v1.SkinModel skins = 1;
+}
+
+message GetTopLosersRequest {
+    int32 limit = 1;
+}
+
+message GetTopLosersResponse {
+    repeated skins.models.v1.SkinModel skins = 1;
+}
